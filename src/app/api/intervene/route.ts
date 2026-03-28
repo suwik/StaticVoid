@@ -5,7 +5,7 @@ import {
   INTERVENTION_SYSTEM_PROMPT,
   buildInterventionPrompt,
 } from "@/lib/gemini/prompts";
-import type { InterventionResponse } from "@/lib/types";
+import type { InterventionResponse, StudentResponse } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,12 +100,21 @@ export async function POST(request: NextRequest) {
 
     // Save intervention if triggered
     if (intervention.should_intervene && intervention.type && intervention.message) {
-      await supabase.from("interventions").insert({
-        session_id: sessionId,
-        paragraph_index: paragraphIndex,
-        paragraph_text: latestParagraph,
-        intervention_type: intervention.type,
-        message: intervention.message,
+      const { data: saved } = await supabase
+        .from("interventions")
+        .insert({
+          session_id: sessionId,
+          paragraph_index: paragraphIndex,
+          paragraph_text: latestParagraph,
+          intervention_type: intervention.type,
+          message: intervention.message,
+        })
+        .select("id")
+        .single();
+
+      return NextResponse.json({
+        ...intervention,
+        intervention_id: saved?.id ?? null,
       });
     }
 
@@ -115,6 +124,60 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { should_intervene: false, type: null, message: null },
       { status: 200 }
+    );
+  }
+}
+
+const VALID_RESPONSES: StudentResponse[] = ["pending", "dismissed", "read", "revised"];
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { interventionId, studentResponse } = await request.json();
+
+    if (!interventionId || !studentResponse) {
+      return NextResponse.json(
+        { error: "Missing interventionId or studentResponse" },
+        { status: 400 }
+      );
+    }
+
+    if (!VALID_RESPONSES.includes(studentResponse)) {
+      return NextResponse.json(
+        { error: "Invalid studentResponse value" },
+        { status: 400 }
+      );
+    }
+
+    // Update intervention — RLS ensures user can only update their own
+    const { data, error } = await supabase
+      .from("interventions")
+      .update({ student_response: studentResponse })
+      .eq("id", interventionId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json(
+        { error: "Intervention not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Intervention update error:", error);
+    return NextResponse.json(
+      { error: "Failed to update intervention" },
+      { status: 500 }
     );
   }
 }

@@ -124,14 +124,14 @@ export function EssayEditor({
         });
 
         if (res.ok) {
-          const intervention: InterventionResponse = await res.json();
+          const intervention: InterventionResponse & { intervention_id?: string } = await res.json();
           if (
             intervention.should_intervene &&
             intervention.type &&
             intervention.message
           ) {
             const nudge: Intervention = {
-              id: crypto.randomUUID(),
+              id: intervention.intervention_id ?? crypto.randomUUID(),
               session_id: sessionId,
               paragraph_index: result.completedParagraphIndex,
               paragraph_text: result.completedParagraphText,
