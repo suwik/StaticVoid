@@ -1,4 +1,5 @@
 import { SetupForm } from "@/components/session/setup-form";
+import { loadPredefinedQuestions } from "@/lib/predefined-questions";
 import { NavHeader } from "@/components/layout/nav-header";
 import {
   Card,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/card";
 
 export default function NewSessionPage() {
+  const predefinedQuestions = loadPredefinedQuestions();
+
   return (
     <>
       <NavHeader />
@@ -22,7 +25,7 @@ export default function NewSessionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SetupForm />
+            <SetupForm predefinedQuestions={predefinedQuestions} />
           </CardContent>
         </Card>
       </div>
