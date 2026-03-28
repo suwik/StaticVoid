@@ -83,39 +83,32 @@ export async function POST(request: NextRequest) {
       studentPatterns: patternSummary || undefined,
     });
 
-    const interaction = await client.interactions.create({
-      model: "gemini-3-flash-preview",
-      input: userPrompt,
-      system_instruction: INTERVENTION_SYSTEM_PROMPT,
-      response_mime_type: "application/json",
-      response_format: {
-        type: "object",
-        properties: {
-          should_intervene: { type: "boolean" },
-          type: {
-            type: "string",
-            enum: VALID_TYPES,
-            nullable: true,
+    // Use generateContent for low-latency response (Interactions API is too slow)
+    const response = await client.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: userPrompt,
+      config: {
+        systemInstruction: INTERVENTION_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            should_intervene: { type: "boolean" },
+            type: {
+              type: "string",
+              enum: VALID_TYPES,
+              nullable: true,
+            },
+            message: { type: "string", nullable: true },
           },
-          message: { type: "string", nullable: true },
+          required: ["should_intervene", "type", "message"],
         },
-        required: ["should_intervene", "type", "message"],
       },
     });
 
-    // Validate Gemini response structure
-    if (!interaction.outputs || interaction.outputs.length === 0) {
-      console.warn("No outputs from Gemini");
-      return NextResponse.json({
-        should_intervene: false,
-        type: null,
-        message: null,
-      });
-    }
-
-    const lastOutput = interaction.outputs[interaction.outputs.length - 1];
-    if (lastOutput?.type !== "text" || !lastOutput.text) {
-      console.warn("Unexpected Gemini output type:", lastOutput?.type);
+    const text = response.text;
+    if (!text) {
+      console.warn("No text from Gemini");
       return NextResponse.json({
         should_intervene: false,
         type: null,
@@ -125,9 +118,9 @@ export async function POST(request: NextRequest) {
 
     let intervention: InterventionResponse;
     try {
-      intervention = JSON.parse(lastOutput.text);
+      intervention = JSON.parse(text);
     } catch (parseErr) {
-      console.error("Failed to parse Gemini JSON:", lastOutput.text);
+      console.error("Failed to parse Gemini JSON:", text);
       return NextResponse.json({
         should_intervene: false,
         type: null,
