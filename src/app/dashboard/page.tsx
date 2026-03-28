@@ -4,6 +4,7 @@ import { Clock, MessageSquare, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { NavHeader } from "@/components/layout/nav-header";
 import { GridBackground } from "@/components/layout/grid-background";
+import { DemoScenarios } from "@/components/session/demo-scenarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Session, SessionStatus } from "@/lib/types";
@@ -164,6 +165,8 @@ export default async function DashboardPage() {
             </Button>
           </Link>
         </div>
+
+        <DemoScenarios />
 
         {error ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
