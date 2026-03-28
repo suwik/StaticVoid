@@ -48,7 +48,7 @@ describe("Timer", () => {
 
     const timerEl = screen.getByText("45:00");
     expect(timerEl.className).not.toContain("text-red-500");
-    expect(timerEl.className).toContain("text-zinc-600");
+    expect(timerEl.className).toContain("text-muted-foreground");
   });
 
   it("should stop at 00:00", () => {

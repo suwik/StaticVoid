@@ -54,3 +54,12 @@ export interface InterventionResponse {
   type: InterventionType | null;
   message: string | null;
 }
+
+export interface ClientNudge {
+  id: string;
+  paragraphIndex: number;
+  interventionType: InterventionType;
+  message: string;
+  timestamp: Date;
+  dismissed: boolean;
+}
