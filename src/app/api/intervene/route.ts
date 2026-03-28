@@ -241,9 +241,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(intervention);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("Intervention error:", error);
     return NextResponse.json(
-      { error: "Intervention check failed", should_intervene: false, type: null, message: null },
+      { error: message, should_intervene: false, type: null, message: null },
       { status: 500 }
     );
   }

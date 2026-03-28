@@ -30,12 +30,12 @@ describe("Intervention API contract", () => {
       expect(INTERVENTION_SYSTEM_PROMPT).toContain("never give the answer");
     });
 
-    it("should be proactive about detecting issues", () => {
-      expect(INTERVENTION_SYSTEM_PROMPT).toContain("proactive");
+    it("should be selective about when to intervene", () => {
+      expect(INTERVENTION_SYSTEM_PROMPT).toContain("BE SELECTIVE");
     });
 
     it("should list common issues to watch for", () => {
-      expect(INTERVENTION_SYSTEM_PROMPT).toContain("describing without evaluating");
+      expect(INTERVENTION_SYSTEM_PROMPT).toContain("no evaluation at all");
       expect(INTERVENTION_SYSTEM_PROMPT).toContain("without evidence");
     });
   });
