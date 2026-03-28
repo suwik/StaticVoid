@@ -72,6 +72,7 @@ export async function GET(
 
     const stats = {
       session_id: id,
+      question: session.question,
       total_nudges: typedInterventions.length,
       nudges_by_type: nudgesByType,
       student_responses: studentResponses,
