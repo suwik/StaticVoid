@@ -24,6 +24,7 @@ export default function SessionPage() {
 
   const essayContentRef = useRef("");
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [initialEssayContent, setInitialEssayContent] = useState("");
   const [nudges, setNudges] = useState<Intervention[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
   const completingRef = useRef(false);
@@ -41,21 +42,28 @@ export default function SessionPage() {
           router.replace(`/session/${sessionId}/stats`);
           return;
         }
-        setSession(data);
-        setTimeRemaining(data.time_limit); // already in seconds
-
-        // Restore saved essay content
+        // Restore saved essay content before setting loading=false
+        let savedContent = "";
         try {
           const essayRes = await fetch(`/api/essay?sessionId=${sessionId}`);
           if (essayRes.ok) {
             const essay = await essayRes.json();
-            if (essay.content) {
-              essayContentRef.current = essay.content;
-            }
+            savedContent = essay.content || "";
           }
         } catch {
           // Non-blocking: start with empty editor if restore fails
         }
+
+        // Calculate remaining time from started_at so refreshes don't reset the timer
+        const elapsedSeconds = Math.floor(
+          (Date.now() - new Date(data.started_at).getTime()) / 1000
+        );
+        const remaining = Math.max(0, data.time_limit - elapsedSeconds);
+
+        setSession(data);
+        setTimeRemaining(remaining);
+        essayContentRef.current = savedContent;
+        setInitialEssayContent(savedContent);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load session");
       } finally {
@@ -198,6 +206,7 @@ export default function SessionPage() {
           <EssayEditor
             sessionId={sessionId}
             timeRemaining={timeRemaining}
+            initialContent={initialEssayContent}
             onContentChange={handleContentChange}
             onNewNudge={handleNewNudge}
             disabled={isCompleted}
@@ -227,6 +236,7 @@ export default function SessionPage() {
             </div>
             <Timer
               timeLimit={session.time_limit}
+              initialSeconds={timeRemaining}
               onTimeUpdate={handleTimeUpdate}
               onTimerExpired={handleTimerExpired}
               disabled={isCompleted}

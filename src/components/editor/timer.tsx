@@ -66,7 +66,7 @@ export function Timer({
     textColor = "text-destructive";
   } else if (isWarning) {
     ringColor = "stroke-amber-500";
-    textColor = "text-amber-600 dark:text-amber-400";
+    textColor = "text-amber-500";
   }
 
   return (

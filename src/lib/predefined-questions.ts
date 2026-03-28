@@ -24,7 +24,7 @@ function extractSection(content: string, heading: string): string {
 }
 
 function extractQuestion(essayQuestionSection: string): string {
-  const match = essayQuestionSection.match(/\*\*Question:\*\*\s*"?(.+?)"?\s*$/ms);
+  const match = essayQuestionSection.match(new RegExp('\\*\\*Question:\\*\\*\\s*"?(.+?)"?\\s*$', 'ms'));
   if (match) return match[1].trim().replace(/^"(.*)"$/, "$1");
   // Fallback: return full section text
   return essayQuestionSection;

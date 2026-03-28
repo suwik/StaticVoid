@@ -26,7 +26,7 @@ describe("NudgePanel", () => {
   it("should render empty state when no nudges", () => {
     render(<NudgePanel {...defaultProps} />);
     expect(screen.getByText("AI Coach")).toBeInTheDocument();
-    expect(screen.getByText("No feedback yet")).toBeInTheDocument();
+    expect(screen.getByText(/Feedback will appear/)).toBeInTheDocument();
   });
 
   it("should render a single nudge with correct type badge", () => {

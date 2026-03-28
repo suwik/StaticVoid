@@ -83,8 +83,9 @@ export async function POST(request: NextRequest) {
       studentPatterns: patternSummary || undefined,
     });
 
-    const interaction = await client.interactions.create({
-      model: "gemini-3-flash-preview",
+    // Race Gemini call against 15s timeout — student shouldn't wait longer
+    const geminiCall = client.interactions.create({
+      model: "gemini-2.5-flash",
       input: userPrompt,
       system_instruction: INTERVENTION_SYSTEM_PROMPT,
       response_mime_type: "application/json",
@@ -102,6 +103,12 @@ export async function POST(request: NextRequest) {
         required: ["should_intervene", "type", "message"],
       },
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini timeout after 15s")), 15000)
+    );
+
+    const interaction = await Promise.race([geminiCall, timeoutPromise]);
 
     // Validate Gemini response structure
     if (!interaction.outputs || interaction.outputs.length === 0) {
