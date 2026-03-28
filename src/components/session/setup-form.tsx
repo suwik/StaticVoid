@@ -20,6 +20,7 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
   const [markSchemeIsRendered, setMarkSchemeIsRendered] = useState(false);
   const [timeLimit, setTimeLimit] = useState(45);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function handlePredefinedSelect(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -34,23 +35,31 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
-    const res = await fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question,
-        markScheme,
-        timeLimit: timeLimit * 60,
-      }),
-    });
+    try {
+      const res = await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          markScheme,
+          timeLimit: timeLimit * 60,
+        }),
+      });
 
-    if (res.ok) {
-      const session = await res.json();
-      router.push(`/session/${session.id}`);
+      if (res.ok) {
+        const session = await res.json();
+        router.push(`/session/${session.id}`);
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || "Failed to create session. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
@@ -165,6 +174,9 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
           max={180}
         />
       </div>
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Creating..." : "Start Session"}
       </Button>

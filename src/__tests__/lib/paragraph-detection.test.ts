@@ -61,12 +61,12 @@ describe("extractPlainText", () => {
 describe("detectCompletedParagraph", () => {
   it("returns null for a single empty paragraph", () => {
     const value = [{ type: "p", children: [{ text: "" }] }];
-    expect(detectCompletedParagraph(value, 0)).toBeNull();
+    expect(detectCompletedParagraph(value, new Set())).toBeNull();
   });
 
   it("returns null for a single paragraph with text (no new paragraph started)", () => {
     const value = [{ type: "p", children: [{ text: "Writing here..." }] }];
-    expect(detectCompletedParagraph(value, 0)).toBeNull();
+    expect(detectCompletedParagraph(value, new Set())).toBeNull();
   });
 
   it("detects completed paragraph when new empty paragraph follows", () => {
@@ -74,7 +74,7 @@ describe("detectCompletedParagraph", () => {
       { type: "p", children: [{ text: "Completed paragraph content" }] },
       { type: "p", children: [{ text: "" }] },
     ];
-    const result = detectCompletedParagraph(value, 0);
+    const result = detectCompletedParagraph(value, new Set());
 
     expect(result).not.toBeNull();
     expect(result!.completedParagraphIndex).toBe(0);
@@ -87,8 +87,8 @@ describe("detectCompletedParagraph", () => {
       { type: "p", children: [{ text: "Completed paragraph content" }] },
       { type: "p", children: [{ text: "" }] },
     ];
-    // Already checked 1 paragraph
-    expect(detectCompletedParagraph(value, 1)).toBeNull();
+    // Already checked this paragraph text
+    expect(detectCompletedParagraph(value, new Set(["Completed paragraph content"]))).toBeNull();
   });
 
   it("detects second completed paragraph", () => {
@@ -97,8 +97,8 @@ describe("detectCompletedParagraph", () => {
       { type: "p", children: [{ text: "Second paragraph" }] },
       { type: "p", children: [{ text: "" }] },
     ];
-    // Already checked 1 paragraph
-    const result = detectCompletedParagraph(value, 1);
+    // Already checked first paragraph
+    const result = detectCompletedParagraph(value, new Set(["First paragraph"]));
 
     expect(result).not.toBeNull();
     expect(result!.completedParagraphIndex).toBe(1);
@@ -111,7 +111,7 @@ describe("detectCompletedParagraph", () => {
       { type: "p", children: [{ text: "First paragraph" }] },
       { type: "p", children: [{ text: "Still typing..." }] },
     ];
-    expect(detectCompletedParagraph(value, 0)).toBeNull();
+    expect(detectCompletedParagraph(value, new Set())).toBeNull();
   });
 
   it("handles paragraphs with formatted text (marks)", () => {
@@ -129,7 +129,7 @@ describe("detectCompletedParagraph", () => {
       { type: "p", children: [{ text: "" }] },
     ];
 
-    const result = detectCompletedParagraph(value, 0);
+    const result = detectCompletedParagraph(value, new Set());
     expect(result).not.toBeNull();
     expect(result!.completedParagraphText).toBe(
       "This is bold and italic text"

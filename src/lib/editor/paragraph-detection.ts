@@ -27,40 +27,45 @@ export function extractPlainText(value: Descendant[]): string {
 /**
  * Detect when a paragraph has been completed in the Slate document.
  *
- * In Slate/Plate, pressing Enter creates a new paragraph node. A paragraph
- * is "completed" when a new empty paragraph node appears after a non-empty one.
+ * A paragraph is "completed" when:
+ * 1. The last node in the document is empty (student pressed Enter)
+ * 2. The node before it has text content
+ * 3. That text hasn't been checked yet (not in checkedTexts set)
  *
- * Returns null if no new paragraph was completed since lastCheckedCount.
+ * Uses a Set of checked paragraph texts instead of a simple counter,
+ * making it robust across page reloads and out-of-order edits.
  */
 export function detectCompletedParagraph(
   value: Descendant[],
-  lastCheckedCount: number
+  checkedTexts: Set<string>
 ): ParagraphCheckResult | null {
-  // Count paragraphs with actual text content
-  const nonEmptyParagraphs = value.filter((node) => {
-    const text = extractParagraphText(node);
-    return text.trim().length > 0;
-  });
+  if (value.length < 2) return null;
 
-  const currentNonEmptyCount = nonEmptyParagraphs.length;
-
-  // Check if a new non-empty paragraph exists AND the last node is empty
-  // (meaning the student pressed Enter to start a new paragraph)
+  // Last node must be empty (student pressed Enter to start a new paragraph)
   const lastNode = value[value.length - 1];
   const lastNodeIsEmpty =
     lastNode && extractParagraphText(lastNode).trim().length === 0;
 
-  if (currentNonEmptyCount > lastCheckedCount && lastNodeIsEmpty) {
-    const completedIndex = currentNonEmptyCount - 1;
-    const completedNode = nonEmptyParagraphs[completedIndex];
-    const completedText = extractParagraphText(completedNode);
+  if (!lastNodeIsEmpty) return null;
 
-    return {
-      completedParagraphIndex: completedIndex,
-      completedParagraphText: completedText,
-      fullText: extractPlainText(value),
-    };
-  }
+  // The completed paragraph is the last non-empty node before the empty one
+  const completedNode = value[value.length - 2];
+  const completedText = extractParagraphText(completedNode).trim();
 
-  return null;
+  if (!completedText) return null;
+
+  // Skip if we've already checked this exact paragraph text
+  if (checkedTexts.has(completedText)) return null;
+
+  // Find the index among non-empty paragraphs
+  const nonEmptyParagraphs = value.filter(
+    (node) => extractParagraphText(node).trim().length > 0
+  );
+  const completedIndex = nonEmptyParagraphs.length - 1;
+
+  return {
+    completedParagraphIndex: completedIndex,
+    completedParagraphText: completedText,
+    fullText: extractPlainText(value),
+  };
 }
