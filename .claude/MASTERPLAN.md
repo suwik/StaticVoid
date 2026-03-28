@@ -114,6 +114,27 @@ AI checks writing regularly — not intrusively, but watching:
 
 ---
 
+## Voice Coach (IMPLEMENTED)
+
+Live voice conversation with the AI coach during essay writing sessions. Students can talk about their essay, ask for advice, discuss ideas, or work through tricky sections — and get spoken feedback in real-time.
+
+**How it works:**
+- Tab in the session sidebar switches between Nudges and Voice Coach
+- "Start Voice Chat" connects to Gemini 3.1 Flash Live API via WebSocket
+- Uses ephemeral tokens (API key never reaches the client)
+- System instruction includes the essay question, mark scheme, and current essay content
+- Audio input/output with real-time transcription display
+- Mute/unmute and end call controls
+- Coach guides thinking with questions — never writes the essay for the student
+- Time-aware: nudges student to get back to writing if chatting too long
+
+**Architecture:**
+- `POST /api/live-token` — generates ephemeral token with locked model config
+- `VoiceCoach` component — mic capture, WebSocket, audio playback, transcription
+- `buildVoiceCoachPrompt()` — voice-specific system prompt with essay context
+
+---
+
 ## Future Features (POST-HACKATHON — do NOT build now)
 
 These are considered but explicitly deferred. Do not implement unless the user specifically requests.
