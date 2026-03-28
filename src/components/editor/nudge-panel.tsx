@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { Intervention, InterventionType } from "@/lib/types";
+import { useEffect, useRef, useCallback } from "react";
+import type { Intervention, InterventionType, StudentResponse } from "@/lib/types";
 
 interface NudgePanelProps {
   nudges: Intervention[];
   onDismiss: (nudgeId: string) => void;
+  onResponseChange?: (nudgeId: string, response: StudentResponse) => void;
 }
 
 const TYPE_CONFIG: Record<
@@ -44,9 +45,18 @@ const TYPE_CONFIG: Record<
   },
 };
 
-export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
+function persistResponse(interventionId: string, studentResponse: string) {
+  fetch("/api/intervene", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ interventionId, studentResponse }),
+  }).catch((err) => console.error("Failed to persist response:", err));
+}
+
+export function NudgePanel({ nudges, onDismiss, onResponseChange }: NudgePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(nudges.length);
+  const readTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Scroll to top when new nudge arrives (nudges are prepended)
   useEffect(() => {
@@ -56,8 +66,56 @@ export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
     prevCountRef.current = nudges.length;
   }, [nudges.length]);
 
-  const activeNudges = nudges.filter((n) => n.student_response !== "dismissed");
-  const dismissedNudges = nudges.filter((n) => n.student_response === "dismissed");
+  // Auto-mark pending nudges as "read" after 2 seconds of visibility
+  useEffect(() => {
+    if (!onResponseChange) return;
+
+    const pendingNudges = nudges.filter((n) => n.student_response === "pending");
+    for (const nudge of pendingNudges) {
+      if (!readTimersRef.current.has(nudge.id)) {
+        const timer = setTimeout(() => {
+          persistResponse(nudge.id, "read");
+          onResponseChange(nudge.id, "read");
+          readTimersRef.current.delete(nudge.id);
+        }, 2000);
+        readTimersRef.current.set(nudge.id, timer);
+      }
+    }
+
+    return () => {
+      // Cleanup timers for nudges that disappeared
+      for (const [id, timer] of readTimersRef.current.entries()) {
+        if (!nudges.find((n) => n.id === id)) {
+          clearTimeout(timer);
+          readTimersRef.current.delete(id);
+        }
+      }
+    };
+  }, [nudges, onResponseChange]);
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const timer of readTimersRef.current.values()) {
+        clearTimeout(timer);
+      }
+    };
+  }, []);
+
+  const handleRevised = useCallback(
+    (nudgeId: string) => {
+      persistResponse(nudgeId, "revised");
+      onResponseChange?.(nudgeId, "revised");
+    },
+    [onResponseChange]
+  );
+
+  const activeNudges = nudges.filter(
+    (n) => n.student_response !== "dismissed"
+  );
+  const dismissedNudges = nudges.filter(
+    (n) => n.student_response === "dismissed"
+  );
 
   return (
     <div
@@ -76,6 +134,9 @@ export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
       {activeNudges.map((nudge, index) => {
         const config = TYPE_CONFIG[nudge.intervention_type];
         const isNew = index === 0 && nudges[0]?.id === nudge.id;
+        const isRead =
+          nudge.student_response === "read" ||
+          nudge.student_response === "revised";
 
         return (
           <div
@@ -87,9 +148,7 @@ export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
             }`}
             style={
               isNew
-                ? {
-                    animation: "slideIn 0.3s ease-out",
-                  }
+                ? { animation: "slideIn 0.3s ease-out" }
                 : undefined
             }
           >
@@ -100,7 +159,10 @@ export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
                 {config.label}
               </span>
               <button
-                onClick={() => onDismiss(nudge.id)}
+                onClick={() => {
+                  persistResponse(nudge.id, "dismissed");
+                  onDismiss(nudge.id);
+                }}
                 className="shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 aria-label="Dismiss nudge"
               >
@@ -123,9 +185,23 @@ export function NudgePanel({ nudges, onDismiss }: NudgePanelProps) {
             <p className="mt-2 text-zinc-700 dark:text-zinc-300">
               {nudge.message}
             </p>
-            <span className="mt-1 block text-xs text-zinc-400">
-              Paragraph {nudge.paragraph_index + 1}
-            </span>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-zinc-400">
+                Paragraph {nudge.paragraph_index + 1}
+              </span>
+              {nudge.student_response === "revised" ? (
+                <span className="text-xs text-green-600 font-medium">
+                  Revised
+                </span>
+              ) : isRead && onResponseChange ? (
+                <button
+                  onClick={() => handleRevised(nudge.id)}
+                  className="text-xs text-green-600 hover:text-green-700 font-medium underline underline-offset-2"
+                >
+                  Mark as revised
+                </button>
+              ) : null}
+            </div>
           </div>
         );
       })}

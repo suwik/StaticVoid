@@ -71,6 +71,12 @@ Middleware (`src/middleware.ts` → `src/lib/supabase/middleware.ts`) intercepts
 4. If issue detected → nudge appears (guiding question, not answer)
 5. Session ends → stats show intervention patterns
 
+## Git Workflow
+- **Always commit and create a PR** after completing a task — do not wait for the user to ask
+- Create a feature branch for each piece of work
+- Push and open a PR with a summary and test plan
+- Use conventional commit messages (e.g., `feat:`, `fix:`, `refactor:`)
+
 ## Conventions
 - App Router only (not Pages Router)
 - Server Components by default; `"use client"` only when needed

@@ -119,4 +119,53 @@ describe("NudgePanel", () => {
     expect(panel.className).toContain("border-l");
     expect(panel.className).toContain("overflow-y-auto");
   });
+
+  describe("response tracking", () => {
+    it("should show 'Mark as revised' button for read nudges", () => {
+      const onResponseChange = vi.fn();
+      render(
+        <NudgePanel
+          {...defaultProps}
+          nudges={[makeNudge({ student_response: "read" })]}
+          onResponseChange={onResponseChange}
+        />
+      );
+      expect(screen.getByText("Mark as revised")).toBeInTheDocument();
+    });
+
+    it("should call onResponseChange with 'revised' when button clicked", () => {
+      const onResponseChange = vi.fn();
+      render(
+        <NudgePanel
+          {...defaultProps}
+          nudges={[makeNudge({ id: "n1", student_response: "read" })]}
+          onResponseChange={onResponseChange}
+        />
+      );
+
+      fireEvent.click(screen.getByText("Mark as revised"));
+      expect(onResponseChange).toHaveBeenCalledWith("n1", "revised");
+    });
+
+    it("should show 'Revised' label for revised nudges", () => {
+      render(
+        <NudgePanel
+          {...defaultProps}
+          nudges={[makeNudge({ student_response: "revised" })]}
+        />
+      );
+      expect(screen.getByText("Revised")).toBeInTheDocument();
+    });
+
+    it("should not show 'Mark as revised' for pending nudges", () => {
+      render(
+        <NudgePanel
+          {...defaultProps}
+          nudges={[makeNudge({ student_response: "pending" })]}
+          onResponseChange={vi.fn()}
+        />
+      );
+      expect(screen.queryByText("Mark as revised")).not.toBeInTheDocument();
+    });
+  });
 });

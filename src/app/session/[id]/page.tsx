@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { EssayEditor } from "@/components/editor/essay-editor";
 import { Timer } from "@/components/editor/timer";
 import { NudgePanel } from "@/components/editor/nudge-panel";
-import type { Session, Intervention } from "@/lib/types";
+import type { Session, Intervention, StudentResponse } from "@/lib/types";
 
 export default function SessionPage() {
   const params = useParams<{ id: string }>();
@@ -63,6 +63,15 @@ export default function SessionPage() {
       )
     );
   }, []);
+
+  const handleResponseChange = useCallback(
+    (nudgeId: string, response: StudentResponse) => {
+      setNudges((prev) =>
+        prev.map((n) => (n.id === nudgeId ? { ...n, student_response: response } : n))
+      );
+    },
+    []
+  );
 
   const handleContentChange = useCallback((content: string) => {
     essayContentRef.current = content;
@@ -170,7 +179,11 @@ export default function SessionPage() {
         </div>
 
         {/* Nudge panel */}
-        <NudgePanel nudges={nudges} onDismiss={handleDismissNudge} />
+        <NudgePanel
+          nudges={nudges}
+          onDismiss={handleDismissNudge}
+          onResponseChange={handleResponseChange}
+        />
       </div>
     </div>
   );

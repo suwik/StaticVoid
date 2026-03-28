@@ -9,7 +9,7 @@ export default async function StatsPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl p-8 space-y-6">
-      <h1 className="text-2xl font-bold">Session Stats</h1>
+      <h1 className="text-2xl font-bold">Session Results</h1>
       <StatsView sessionId={id} />
     </div>
   );
