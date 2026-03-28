@@ -119,13 +119,18 @@ export function EssayEditor({
     };
   }, [disabled]);
 
+  // Lock to prevent concurrent intervention checks (sentence/periodic/stuck triggers)
+  const interventionLockRef = useRef(false);
+
   // Helper: send content to AI and emit nudge if warranted
   const sendInterventionCheck = useCallback(
     async (current: string) => {
+      if (interventionLockRef.current) return;
       const paragraphs = current.split(/\n\n/).filter(Boolean);
       if (paragraphs.length === 0) return;
 
       const latestParagraph = paragraphs[paragraphs.length - 1];
+      interventionLockRef.current = true;
 
       try {
         const res = await fetch("/api/intervene", {
@@ -144,6 +149,9 @@ export function EssayEditor({
           const intervention: InterventionResponse & { intervention_id?: string } =
             await res.json();
           if (intervention.should_intervene && intervention.type && intervention.message) {
+            if (!intervention.intervention_id) {
+              console.warn("Intervention generated but not persisted to database");
+            }
             onNewNudgeRef.current({
               id: intervention.intervention_id ?? crypto.randomUUID(),
               session_id: sessionId,
@@ -155,9 +163,13 @@ export function EssayEditor({
               created_at: new Date().toISOString(),
             });
           }
+        } else {
+          console.error("Intervention API error:", res.status);
         }
       } catch {
         // Non-blocking
+      } finally {
+        interventionLockRef.current = false;
       }
     },
     [sessionId]

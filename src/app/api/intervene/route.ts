@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     // Save intervention if triggered
     if (intervention.should_intervene && intervention.type && intervention.message) {
-      const { data: saved } = await supabase
+      const { data: saved, error: insertError } = await supabase
         .from("interventions")
         .insert({
           session_id: sessionId,
@@ -191,6 +191,10 @@ export async function POST(request: NextRequest) {
         })
         .select("id")
         .single();
+
+      if (insertError) {
+        console.error("Failed to save intervention:", insertError);
+      }
 
       // Record pattern for weakness tracking
       if (saved) {
@@ -239,8 +243,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Intervention error:", error);
     return NextResponse.json(
-      { should_intervene: false, type: null, message: null },
-      { status: 200 }
+      { error: "Intervention check failed", should_intervene: false, type: null, message: null },
+      { status: 500 }
     );
   }
 }
