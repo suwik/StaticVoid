@@ -15,14 +15,24 @@ import {
 interface EssayEditorProps {
   sessionId: string;
   timeRemaining: number;
+  initialContent?: string;
   onContentChange: (content: string) => void;
   onNewNudge: (nudge: Intervention) => void;
   disabled?: boolean;
 }
 
+function textToPlateValue(text: string): Value {
+  if (!text.trim()) return [{ type: "p", children: [{ text: "" }] }];
+  return text.split(/\n\n/).map((p) => ({
+    type: "p",
+    children: [{ text: p }],
+  }));
+}
+
 export function EssayEditor({
   sessionId,
   timeRemaining,
+  initialContent = "",
   onContentChange,
   onNewNudge,
   disabled = false,
@@ -33,9 +43,13 @@ export function EssayEditor({
   const [checking, setChecking] = useState(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const contentRef = useRef("");
+  const contentRef = useRef(initialContent);
   const timeRemainingRef = useRef(timeRemaining);
-  const lastCheckedRef = useRef(0);
+  // Pre-populate with restored paragraph count so AI doesn't re-check old content
+  const initialParagraphCount = initialContent
+    ? initialContent.split(/\n\n/).filter(Boolean).length
+    : 0;
+  const lastCheckedRef = useRef(initialParagraphCount);
   const wordCountRef = useRef(0);
   const onContentChangeRef = useRef(onContentChange);
   const onNewNudgeRef = useRef(onNewNudge);
@@ -58,12 +72,12 @@ export function EssayEditor({
   const editor = usePlateEditor(
     {
       plugins: [BasicMarksPlugin],
-      value: [{ type: "p", children: [{ text: "" }] }],
+      value: textToPlateValue(initialContent),
     },
     []
   );
 
-  // Auto-save: debounce 30 seconds
+  // Auto-save: debounce 10 seconds
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
@@ -90,7 +104,7 @@ export function EssayEditor({
         setSaveStatus("error");
         setTimeout(() => setSaveStatus("idle"), 3000);
       }
-    }, 30000);
+    }, 10000);
   }, [sessionId]);
 
   // Cleanup on unmount or when disabled
@@ -104,6 +118,107 @@ export function EssayEditor({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [disabled]);
+
+  // Helper: send content to AI and emit nudge if warranted
+  const sendInterventionCheck = useCallback(
+    async (current: string) => {
+      const paragraphs = current.split(/\n\n/).filter(Boolean);
+      if (paragraphs.length === 0) return;
+
+      const latestParagraph = paragraphs[paragraphs.length - 1];
+
+      try {
+        const res = await fetch("/api/intervene", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            essaySoFar: current,
+            latestParagraph,
+            paragraphIndex: paragraphs.length - 1,
+            timeRemaining: timeRemainingRef.current,
+          }),
+        });
+
+        if (res.ok) {
+          const intervention: InterventionResponse & { intervention_id?: string } =
+            await res.json();
+          if (intervention.should_intervene && intervention.type && intervention.message) {
+            onNewNudgeRef.current({
+              id: intervention.intervention_id ?? crypto.randomUUID(),
+              session_id: sessionId,
+              paragraph_index: paragraphs.length - 1,
+              paragraph_text: latestParagraph,
+              intervention_type: intervention.type,
+              message: intervention.message,
+              student_response: "pending",
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    },
+    [sessionId]
+  );
+
+  // Stuck detection: if no typing for 15s, keep nudging every 20s
+  const lastActivityRef = useRef(Date.now());
+  const lastStuckCheckRef = useRef(0);
+
+  useEffect(() => {
+    if (disabled) return;
+
+    const interval = setInterval(async () => {
+      const idleMs = Date.now() - lastActivityRef.current;
+      const current = contentRef.current.trim();
+      const timeSinceLastStuckCheck = Date.now() - lastStuckCheckRef.current;
+
+      // If idle 15+ seconds, has content, and at least 20s since last stuck check
+      if (idleMs >= 15000 && current.length > 20 && timeSinceLastStuckCheck >= 20000) {
+        lastStuckCheckRef.current = Date.now();
+        sendInterventionCheck(current);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [sessionId, disabled, sendInterventionCheck]);
+
+  // Sentence completion detection: trigger AI check when a sentence ends
+  const initialSentences = initialContent.match(/[.!?](?:\s|$)/g);
+  const lastSentenceCountRef = useRef(initialSentences ? initialSentences.length : 0);
+
+  const checkForSentenceCompletion = useCallback(
+    (text: string) => {
+      if (!text.trim()) return;
+      // Count sentences (ending with . ? ! followed by space or end-of-string)
+      const sentences = text.match(/[.!?](?:\s|$)/g);
+      const sentenceCount = sentences ? sentences.length : 0;
+
+      if (sentenceCount > lastSentenceCountRef.current) {
+        lastSentenceCountRef.current = sentenceCount;
+        sendInterventionCheck(text);
+      }
+    },
+    [sendInterventionCheck]
+  );
+
+  // Periodic AI check every 15s — catches issues in long paragraphs
+  const lastPeriodicContentRef = useRef("");
+  useEffect(() => {
+    if (disabled) return;
+
+    const interval = setInterval(async () => {
+      const current = contentRef.current.trim();
+      if (!current || current === lastPeriodicContentRef.current) return;
+
+      lastPeriodicContentRef.current = current;
+      sendInterventionCheck(current);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [sessionId, disabled, sendInterventionCheck]);
 
   const checkForNewParagraph = useCallback(
     async (value: Value) => {
@@ -170,6 +285,9 @@ export function EssayEditor({
         contentRef.current = plainText;
         onContentChangeRef.current(plainText);
 
+        // Reset stuck detection on typing
+        lastActivityRef.current = Date.now();
+
         const words = plainText.trim()
           ? plainText.trim().split(/\s+/).length
           : 0;
@@ -179,10 +297,11 @@ export function EssayEditor({
         }
 
         checkForNewParagraph(snapshot);
+        checkForSentenceCompletion(plainText);
         scheduleSave();
       }, 0);
     },
-    [checkForNewParagraph, scheduleSave]
+    [checkForNewParagraph, checkForSentenceCompletion, scheduleSave]
   );
 
   return (

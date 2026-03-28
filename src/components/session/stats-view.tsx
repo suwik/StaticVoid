@@ -55,11 +55,7 @@ function formatDuration(seconds: number): string {
   return `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
-interface StatsViewProps {
-  sessionId: string;
-}
-
-export function StatsView({ sessionId }: StatsViewProps) {
+export function StatsView({ sessionId }: { sessionId: string }) {
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +66,7 @@ export function StatsView({ sessionId }: StatsViewProps) {
       try {
         const res = await fetch(`/api/session/${sessionId}/stats`);
         if (!res.ok) throw new Error("Failed to load stats");
-        const data = await res.json();
-        setStats(data);
+        setStats(await res.json());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load stats");
       } finally {
@@ -109,15 +104,11 @@ export function StatsView({ sessionId }: StatsViewProps) {
   const pending = stats.student_responses["pending"] || 0;
   const wordCount = stats.word_count ?? 0;
 
-  const typeEntries = Object.entries(stats.nudges_by_type) as [
-    InterventionType,
-    number,
-  ][];
+  const typeEntries = Object.entries(stats.nudges_by_type) as [InterventionType, number][];
   const maxTypeCount = Math.max(...typeEntries.map(([, c]) => c), 1);
 
   return (
     <div className="space-y-6">
-      {/* Question */}
       {stats.question && (
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="text-[0.65rem] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-1">
@@ -129,7 +120,6 @@ export function StatsView({ sessionId }: StatsViewProps) {
         </div>
       )}
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { label: "Nudges Received", value: stats.total_nudges },
@@ -144,7 +134,6 @@ export function StatsView({ sessionId }: StatsViewProps) {
         ))}
       </div>
 
-      {/* Intervention breakdown */}
       {typeEntries.length > 0 ? (
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="font-heading text-lg mb-4">Intervention Breakdown</h3>
@@ -261,7 +250,6 @@ export function StatsView({ sessionId }: StatsViewProps) {
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-3">
         <Button
           variant="outline"

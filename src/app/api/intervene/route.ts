@@ -15,6 +15,42 @@ const VALID_TYPES: InterventionType[] = [
   "time_priority",
 ];
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    if (!sessionId) {
+      return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+    }
+
+    const { data: interventions, error } = await supabase
+      .from("interventions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(interventions ?? []);
+  } catch (error) {
+    console.error("Fetch interventions error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch interventions" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -49,8 +85,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Final-minute silence: don't intervene in the last 60 seconds
-    if (typeof timeRemaining === "number" && timeRemaining < 60) {
+    // Final-30s silence: don't intervene in the last 30 seconds
+    if (typeof timeRemaining === "number" && timeRemaining < 30) {
       return NextResponse.json({
         should_intervene: false,
         type: null,
@@ -101,21 +137,15 @@ export async function POST(request: NextRequest) {
         },
         required: ["should_intervene", "type", "message"],
       },
+      store: false,
     });
 
-    // Validate Gemini response structure
-    if (!interaction.outputs || interaction.outputs.length === 0) {
-      console.warn("No outputs from Gemini");
-      return NextResponse.json({
-        should_intervene: false,
-        type: null,
-        message: null,
-      });
-    }
-
-    const lastOutput = interaction.outputs[interaction.outputs.length - 1];
-    if (lastOutput?.type !== "text" || !lastOutput.text) {
-      console.warn("Unexpected Gemini output type:", lastOutput?.type);
+    const textOutput = interaction.outputs?.find(
+      (o: { type: string }) => o.type === "text"
+    ) as { type: "text"; text: string } | undefined;
+    const text = textOutput?.text;
+    if (!text) {
+      console.warn("No text from Gemini");
       return NextResponse.json({
         should_intervene: false,
         type: null,
@@ -125,9 +155,9 @@ export async function POST(request: NextRequest) {
 
     let intervention: InterventionResponse;
     try {
-      intervention = JSON.parse(lastOutput.text);
+      intervention = JSON.parse(text);
     } catch (parseErr) {
-      console.error("Failed to parse Gemini JSON:", lastOutput.text);
+      console.error("Failed to parse Gemini JSON:", text);
       return NextResponse.json({
         should_intervene: false,
         type: null,

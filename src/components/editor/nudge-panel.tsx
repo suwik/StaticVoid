@@ -139,7 +139,7 @@ export function NudgePanel({
   );
 
   return (
-    <div ref={panelRef} className="flex-1 flex flex-col overflow-y-auto">
+    <div ref={panelRef} className="w-80 border-l border-border flex-1 flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="p-4 pb-2 flex items-center gap-2">
         <Sparkles className="size-4 text-foreground/60" />
@@ -163,7 +163,7 @@ export function NudgePanel({
             No feedback yet
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Keep writing — coaching will appear as you complete paragraphs.
+            Feedback will appear here as you write.
           </p>
         </div>
       ) : (
