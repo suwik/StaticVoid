@@ -6,6 +6,8 @@ import { NavHeader } from "@/components/layout/nav-header";
 import { GridBackground } from "@/components/layout/grid-background";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScenarioCards } from "@/components/dashboard/scenario-cards";
+import { PREDEFINED_SCENARIOS } from "@/lib/predefined-scenarios";
 import type { Session, SessionStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -165,25 +167,30 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {error ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
-            <p className="text-sm text-destructive">
-              Failed to load sessions. Please try refreshing the page.
-            </p>
-          </div>
-        ) : !sessions || sessions.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                interventionCount={interventionCounts[session.id] ?? 0}
-              />
-            ))}
-          </div>
-        )}
+        <ScenarioCards scenarios={PREDEFINED_SCENARIOS} />
+
+        <div className="space-y-3">
+          <h2 className="font-heading text-lg tracking-tight">Your Sessions</h2>
+          {error ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm text-destructive">
+                Failed to load sessions. Please try refreshing the page.
+              </p>
+            </div>
+          ) : !sessions || sessions.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {sessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  interventionCount={interventionCounts[session.id] ?? 0}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </GridBackground>
   );

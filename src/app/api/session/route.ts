@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { question, markScheme, timeLimit } = await request.json();
+    const { question, markScheme, timeLimit, startedAt } = await request.json();
 
     // Validate inputs
     if (!question?.trim() || !markScheme?.trim()) {
@@ -33,15 +33,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const insertPayload: Record<string, unknown> = {
+      user_id: user.id,
+      question,
+      mark_scheme: markScheme,
+      time_limit: timeLimit,
+    };
+
+    if (startedAt && typeof startedAt === "string") {
+      insertPayload.started_at = startedAt;
+    }
+
     // Create session
     const { data: session, error: sessionError } = await supabase
       .from("sessions")
-      .insert({
-        user_id: user.id,
-        question,
-        mark_scheme: markScheme,
-        time_limit: timeLimit,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
