@@ -54,6 +54,17 @@ export default function SessionPage() {
           // Non-blocking: start with empty editor if restore fails
         }
 
+        // Restore nudges from database
+        let savedNudges: Intervention[] = [];
+        try {
+          const nudgesRes = await fetch(`/api/intervene?sessionId=${sessionId}`);
+          if (nudgesRes.ok) {
+            savedNudges = await nudgesRes.json();
+          }
+        } catch {
+          // Non-blocking: start with empty nudges if restore fails
+        }
+
         // Calculate remaining time from started_at so refreshes don't reset the timer
         const elapsedSeconds = Math.floor(
           (Date.now() - new Date(data.started_at).getTime()) / 1000
@@ -64,6 +75,7 @@ export default function SessionPage() {
         setTimeRemaining(remaining);
         essayContentRef.current = savedContent;
         setInitialEssayContent(savedContent);
+        setNudges(savedNudges);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load session");
       } finally {
@@ -78,7 +90,11 @@ export default function SessionPage() {
   }, []);
 
   const handleNewNudge = useCallback((nudge: Intervention) => {
-    setNudges((prev) => [nudge, ...prev]);
+    setNudges((prev) => {
+      // Deduplicate: don't add if this nudge ID already exists
+      if (prev.some((n) => n.id === nudge.id)) return prev;
+      return [nudge, ...prev];
+    });
   }, []);
 
   const handleDismissNudge = useCallback((nudgeId: string) => {
