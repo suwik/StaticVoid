@@ -15,9 +15,9 @@ The full product roadmap, user flows, smart detection logic, and future features
 **Rules:**
 - If a task conflicts with the masterplan, flag it to the user and ask before proceeding
 - If something feels inconsistent with the plan, ask clarifying questions — don't assume
-- If the user asks to change direction, update MASTERPLAN.md accordingly
-- Features marked "POST-HACKATHON" in the masterplan must NOT be built unless explicitly requested
-- **Hackathon release: 2026-03-28.** Keep everything simple, stable, shippable. No speculative complexity. If in doubt, leave it out.
+- If the user asks to change direction or it seems natural to update it, confirm it and, update MASTERPLAN.md accordingly
+
+
 
 ## Commands
 ```bash
