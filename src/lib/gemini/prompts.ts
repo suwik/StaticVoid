@@ -19,12 +19,20 @@ THINGS TO ALWAYS CHECK:
 - Are there counter-arguments or alternative perspectives to consider?
 - Is the paragraph adding something new or repeating earlier points?
 
+TIME & PACING AWARENESS:
+You will receive a PACING section with word count, time used, and projected output. Use it to calibrate your feedback:
+- If the student is behind pace (few words, much time gone), prioritize time_priority nudges. Encourage them to write more and not overthink. Be direct: "You have X minutes left — consider moving to your next point."
+- If the student is severely behind (e.g., <100 words with >50% time gone), make pacing the TOP priority over content quality. A complete mediocre essay scores better than an incomplete excellent one.
+- If the student is ahead of pace, focus on content quality — push for deeper analysis, better evidence, and stronger evaluation.
+- In the final 25% of time, shift toward completion: nudge about missing conclusions, unanswered parts of the question, or key mark scheme criteria not yet addressed.
+- Never give time_priority nudges in the first 20% of the session — let the student settle in.
+
 INTERVENTION TYPES:
 - evaluation_depth: Student describes but doesn't evaluate. Nudge them to analyze impact, significance, or implications.
 - application_missing: Theory stated without applying to the specific context. Nudge them to connect abstract ideas to the case.
 - structure_drift: Paragraph doesn't connect back to the question or breaks the essay's logical flow. Nudge them to refocus.
 - evidence_lacking: Claims made without evidence, examples, or supporting detail. Nudge them to substantiate.
-- time_priority: Running low on time with key sections missing. Nudge them to prioritize what's left.
+- time_priority: Running low on time with key sections missing, or student is writing too slowly to finish. Nudge them to prioritize, pick up pace, or move to the next section.
 
 OUTPUT FORMAT (JSON):
 {
@@ -54,9 +62,30 @@ export function buildInterventionPrompt({
   timeLimit: number;
   studentPatterns?: string;
 }) {
-  const timeUsedPercent = Math.round(
-    ((timeLimit - timeRemaining) / timeLimit) * 100
-  );
+  const timeUsedSeconds = timeLimit - timeRemaining;
+  const timeUsedPercent = Math.round((timeUsedSeconds / timeLimit) * 100);
+  const timeRemainingMinutes = Math.round(timeRemaining / 60);
+
+  // Word count and pacing
+  const wordCount = essaySoFar.trim() ? essaySoFar.trim().split(/\s+/).length : 0;
+  const timeUsedMinutes = timeUsedSeconds / 60;
+  const wordsPerMinute = timeUsedMinutes > 0.5 ? Math.round(wordCount / timeUsedMinutes) : 0;
+  const projectedTotal = wordsPerMinute > 0 ? Math.round(wordsPerMinute * (timeLimit / 60)) : 0;
+  const paragraphCount = essaySoFar.split(/\n\n/).filter(Boolean).length;
+
+  // Pacing assessment
+  let pacingStatus: string;
+  if (timeUsedPercent < 20) {
+    pacingStatus = "Early session — let the student settle in.";
+  } else if (wordCount < 50 && timeUsedPercent > 40) {
+    pacingStatus = "CRITICALLY BEHIND — very few words written with significant time elapsed. Pacing is the top priority.";
+  } else if (projectedTotal > 0 && projectedTotal < 300 && timeUsedPercent > 30) {
+    pacingStatus = `Behind pace — at current rate, projected total is only ~${projectedTotal} words. Student needs to write faster or move on to key points.`;
+  } else if (timeUsedPercent > 75) {
+    pacingStatus = `Final stretch — ${timeRemainingMinutes} min left. Focus on completion: missing conclusion? Unanswered parts of the question? Key criteria not addressed?`;
+  } else {
+    pacingStatus = "On pace — focus on content quality.";
+  }
 
   let prompt = `ESSAY QUESTION: ${question}
 
@@ -68,14 +97,17 @@ ${essaySoFar}
 LATEST PARAGRAPH (paragraph #${paragraphIndex + 1}):
 ${latestParagraph}
 
-TIME: ${timeRemaining} seconds remaining (${timeUsedPercent}% of time used)`;
+TIME: ${timeRemaining} seconds remaining (${timeUsedPercent}% of time used, ~${timeRemainingMinutes} min left)
+
+PACING: ${wordCount} words written across ${paragraphCount} paragraph(s). Current pace: ~${wordsPerMinute} words/min. Projected total at this rate: ~${projectedTotal} words.
+Assessment: ${pacingStatus}`;
 
   if (studentPatterns) {
     prompt += `\n\nSTUDENT HISTORY: ${studentPatterns}`;
   }
 
   prompt +=
-    "\n\nEvaluate the latest paragraph against EACH mark scheme criterion. Look for any weakness, missed opportunity, or way to push the analysis deeper. Default to intervening unless the paragraph is genuinely excellent. Respond with JSON only.";
+    "\n\nEvaluate the latest paragraph against EACH mark scheme criterion and consider the student's pacing. Look for any weakness, missed opportunity, or way to push the analysis deeper. If the student is behind pace, prioritize time_priority feedback. Default to intervening unless the paragraph is genuinely excellent. Respond with JSON only.";
 
   return prompt;
 }
