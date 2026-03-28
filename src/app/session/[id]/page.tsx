@@ -3,15 +3,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Flag, Loader2 } from "lucide-react";
+import { ArrowLeft, Flag, Loader2, MessageSquare, Mic } from "lucide-react";
 import { EssayEditor } from "@/components/editor/essay-editor";
 import { Timer } from "@/components/editor/timer";
 import { NudgePanel } from "@/components/editor/nudge-panel";
+import { VoiceCoach } from "@/components/editor/voice-coach";
 import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import type { Session, Intervention, StudentResponse } from "@/lib/types";
 
 export default function SessionPage() {
@@ -29,6 +31,7 @@ export default function SessionPage() {
   const [nudges, setNudges] = useState<Intervention[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
   const completingRef = useRef(false);
+  const [sidebarTab, setSidebarTab] = useState<"nudges" | "voice">("nudges");
 
   // Fetch session data and restore essay on mount
   useEffect(() => {
@@ -371,12 +374,57 @@ export default function SessionPage() {
             <Progress value={timeProgress} className="h-1.5" />
           </div>
 
-          {/* Nudge panel */}
-          <NudgePanel
-            nudges={nudges}
-            onDismiss={handleDismissNudge}
-            onResponseChange={handleResponseChange}
-          />
+          {/* Tab switcher */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setSidebarTab("nudges")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                sidebarTab === "nudges"
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <MessageSquare className="size-3.5" />
+              Nudges
+              {nudges.filter((n) => n.student_response === "pending").length > 0 && (
+                <span className="size-4 rounded-full bg-primary text-primary-foreground text-[0.6rem] flex items-center justify-center">
+                  {nudges.filter((n) => n.student_response === "pending").length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setSidebarTab("voice")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                sidebarTab === "voice"
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Mic className="size-3.5" />
+              Voice Coach
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {sidebarTab === "nudges" ? (
+            <NudgePanel
+              nudges={nudges}
+              onDismiss={handleDismissNudge}
+              onResponseChange={handleResponseChange}
+            />
+          ) : (
+            <VoiceCoach
+              sessionId={sessionId}
+              question={session.question}
+              markScheme={session.mark_scheme}
+              essayContent={essayContentRef.current}
+              timeRemaining={timeRemaining}
+              timeLimit={session.time_limit}
+              disabled={isCompleted}
+            />
+          )}
         </aside>
       </div>
     </div>
