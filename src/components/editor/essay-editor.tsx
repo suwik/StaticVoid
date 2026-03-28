@@ -119,8 +119,44 @@ export function EssayEditor({
     };
   }, [disabled]);
 
-  // Lock to prevent concurrent intervention checks (sentence/periodic/stuck triggers)
+  // Lock to prevent concurrent intervention checks
   const interventionLockRef = useRef(false);
+
+  // Nudge cooldown: minimum 45s between displayed nudges, queue extras
+  const NUDGE_COOLDOWN_MS = 45_000;
+  const lastNudgeShownRef = useRef(0);
+  const nudgeQueueRef = useRef<Intervention[]>([]);
+
+  const showOrQueueNudge = useCallback(
+    (nudge: Intervention) => {
+      const now = Date.now();
+      if (now - lastNudgeShownRef.current >= NUDGE_COOLDOWN_MS) {
+        lastNudgeShownRef.current = now;
+        onNewNudgeRef.current(nudge);
+      } else {
+        // Queue for later — already persisted in DB
+        nudgeQueueRef.current.push(nudge);
+      }
+    },
+    []
+  );
+
+  // Drain the nudge queue when cooldown expires
+  useEffect(() => {
+    if (disabled) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (
+        nudgeQueueRef.current.length > 0 &&
+        now - lastNudgeShownRef.current >= NUDGE_COOLDOWN_MS
+      ) {
+        const next = nudgeQueueRef.current.shift()!;
+        lastNudgeShownRef.current = now;
+        onNewNudgeRef.current(next);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [disabled]);
 
   // Helper: send content to AI and emit nudge if warranted
   const sendInterventionCheck = useCallback(
@@ -152,7 +188,7 @@ export function EssayEditor({
             if (!intervention.intervention_id) {
               console.warn("Intervention generated but not persisted to database");
             }
-            onNewNudgeRef.current({
+            showOrQueueNudge({
               id: intervention.intervention_id ?? crypto.randomUUID(),
               session_id: sessionId,
               paragraph_index: paragraphs.length - 1,
@@ -164,7 +200,8 @@ export function EssayEditor({
             });
           }
         } else {
-          console.error("Intervention API error:", res.status);
+          const errBody = await res.json().catch(() => null);
+          console.error("Intervention API error:", res.status, errBody?.error ?? "");
         }
       } catch {
         // Non-blocking
@@ -172,10 +209,10 @@ export function EssayEditor({
         interventionLockRef.current = false;
       }
     },
-    [sessionId]
+    [sessionId, showOrQueueNudge]
   );
 
-  // Stuck detection: if no typing for 15s, keep nudging every 20s
+  // Stuck detection: if no typing for 30s, check every 45s
   const lastActivityRef = useRef(Date.now());
   const lastStuckCheckRef = useRef(0);
 
@@ -187,36 +224,16 @@ export function EssayEditor({
       const current = contentRef.current.trim();
       const timeSinceLastStuckCheck = Date.now() - lastStuckCheckRef.current;
 
-      // If idle 15+ seconds, has content, and at least 20s since last stuck check
-      if (idleMs >= 15000 && current.length > 20 && timeSinceLastStuckCheck >= 20000) {
+      if (idleMs >= 30000 && current.length > 20 && timeSinceLastStuckCheck >= 45000) {
         lastStuckCheckRef.current = Date.now();
         sendInterventionCheck(current);
       }
-    }, 5000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [sessionId, disabled, sendInterventionCheck]);
 
-  // Sentence completion detection: trigger AI check when a sentence ends
-  const initialSentences = initialContent.match(/[.!?](?:\s|$)/g);
-  const lastSentenceCountRef = useRef(initialSentences ? initialSentences.length : 0);
-
-  const checkForSentenceCompletion = useCallback(
-    (text: string) => {
-      if (!text.trim()) return;
-      // Count sentences (ending with . ? ! followed by space or end-of-string)
-      const sentences = text.match(/[.!?](?:\s|$)/g);
-      const sentenceCount = sentences ? sentences.length : 0;
-
-      if (sentenceCount > lastSentenceCountRef.current) {
-        lastSentenceCountRef.current = sentenceCount;
-        sendInterventionCheck(text);
-      }
-    },
-    [sendInterventionCheck]
-  );
-
-  // Periodic AI check every 15s — catches issues in long paragraphs
+  // Periodic AI check every 60s — catches issues in long paragraphs
   const lastPeriodicContentRef = useRef("");
   useEffect(() => {
     if (disabled) return;
@@ -227,7 +244,7 @@ export function EssayEditor({
 
       lastPeriodicContentRef.current = current;
       sendInterventionCheck(current);
-    }, 15000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [sessionId, disabled, sendInterventionCheck]);
@@ -263,7 +280,7 @@ export function EssayEditor({
             intervention.type &&
             intervention.message
           ) {
-            const nudge: Intervention = {
+            showOrQueueNudge({
               id: intervention.intervention_id ?? crypto.randomUUID(),
               session_id: sessionId,
               paragraph_index: result.completedParagraphIndex,
@@ -272,8 +289,7 @@ export function EssayEditor({
               message: intervention.message,
               student_response: "pending",
               created_at: new Date().toISOString(),
-            };
-            onNewNudgeRef.current(nudge);
+            });
           }
         }
       } catch (error) {
@@ -282,7 +298,7 @@ export function EssayEditor({
         setChecking(false);
       }
     },
-    [sessionId]
+    [sessionId, showOrQueueNudge]
   );
 
   // Slate-react + React 19 causes infinite update loops if ANY work
@@ -309,11 +325,10 @@ export function EssayEditor({
         }
 
         checkForNewParagraph(snapshot);
-        checkForSentenceCompletion(plainText);
         scheduleSave();
       }, 0);
     },
-    [checkForNewParagraph, checkForSentenceCompletion, scheduleSave]
+    [checkForNewParagraph, scheduleSave]
   );
 
   return (
