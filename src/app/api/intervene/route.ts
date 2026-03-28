@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ai } from "@/lib/gemini/client";
+import { client } from "@/lib/gemini/client";
 import {
   INTERVENTION_SYSTEM_PROMPT,
   buildInterventionPrompt,
@@ -66,16 +66,17 @@ export async function POST(request: NextRequest) {
       studentPatterns: patternSummary || undefined,
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction: INTERVENTION_SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-      },
+    const interaction = await client.interactions.create({
+      model: "gemini-3-flash-preview",
+      input: userPrompt,
+      system_instruction: INTERVENTION_SYSTEM_PROMPT,
+      response_mime_type: "application/json",
     });
 
-    const text = response.text ?? '{"should_intervene": false, "type": null, "message": null}';
+    const lastOutput = interaction.outputs?.[interaction.outputs.length - 1];
+    const text = lastOutput?.type === "text"
+      ? lastOutput.text
+      : '{"should_intervene": false, "type": null, "message": null}';
     const intervention: InterventionResponse = JSON.parse(text);
 
     // Save intervention if triggered

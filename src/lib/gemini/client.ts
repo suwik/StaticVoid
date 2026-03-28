@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({
+const client = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GEMINI_API_KEY!,
 });
 
-export { ai };
+export { client };
