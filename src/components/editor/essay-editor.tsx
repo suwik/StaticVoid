@@ -20,6 +20,7 @@ interface EssayEditorProps {
   onNewNudge: (nudge: Intervention) => void;
   disabled?: boolean;
   triggerInitialCheck?: boolean;
+  checkTrigger?: number;
 }
 
 function textToPlateValue(text: string): Value {
@@ -38,6 +39,7 @@ export function EssayEditor({
   onNewNudge,
   disabled = false,
   triggerInitialCheck = false,
+  checkTrigger = 0,
 }: EssayEditorProps) {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -196,6 +198,15 @@ export function EssayEditor({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Manual feedback button: fire immediately when checkTrigger increments
+  const prevCheckTriggerRef = useRef(checkTrigger);
+  useEffect(() => {
+    if (checkTrigger === prevCheckTriggerRef.current) return;
+    prevCheckTriggerRef.current = checkTrigger;
+    const current = contentRef.current.trim();
+    if (current) sendInterventionCheck(current);
+  }, [checkTrigger, sendInterventionCheck]);
 
   // Sentence completion detection: trigger AI check when a sentence ends
   const initialSentences = initialContent.match(/[.!?](?:\s|$)/g);

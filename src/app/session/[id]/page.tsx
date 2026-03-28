@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Flag, Loader2 } from "lucide-react";
+import { ArrowLeft, Flag, Loader2, Sparkles } from "lucide-react";
 import { EssayEditor } from "@/components/editor/essay-editor";
 import { Timer } from "@/components/editor/timer";
 import { NudgePanel } from "@/components/editor/nudge-panel";
@@ -30,6 +30,7 @@ export default function SessionPage() {
   const [nudges, setNudges] = useState<Intervention[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
   const completingRef = useRef(false);
+  const [checkTrigger, setCheckTrigger] = useState(0);
 
   // Fetch session data and restore essay on mount
   useEffect(() => {
@@ -230,6 +231,7 @@ export default function SessionPage() {
             onNewNudge={handleNewNudge}
             disabled={isCompleted}
             triggerInitialCheck={isDemo}
+            checkTrigger={checkTrigger}
           />
         </div>
 
@@ -262,6 +264,15 @@ export default function SessionPage() {
               disabled={isCompleted}
             />
             <Progress value={timeProgress} className="h-1.5" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCheckTrigger((n) => n + 1)}
+              disabled={isCompleted}
+              className="w-full gap-1.5 rounded-full"
+            >
+              <Sparkles className="size-3" /> Get Feedback
+            </Button>
           </div>
 
           {/* Nudge panel */}
