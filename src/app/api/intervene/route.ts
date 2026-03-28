@@ -71,6 +71,25 @@ export async function POST(request: NextRequest) {
       input: userPrompt,
       system_instruction: INTERVENTION_SYSTEM_PROMPT,
       response_mime_type: "application/json",
+      response_format: {
+        type: "object",
+        properties: {
+          should_intervene: { type: "boolean" },
+          type: {
+            type: "string",
+            enum: [
+              "evaluation_depth",
+              "application_missing",
+              "structure_drift",
+              "evidence_lacking",
+              "time_priority",
+            ],
+            nullable: true,
+          },
+          message: { type: "string", nullable: true },
+        },
+        required: ["should_intervene", "type", "message"],
+      },
     });
 
     const lastOutput = interaction.outputs?.[interaction.outputs.length - 1];

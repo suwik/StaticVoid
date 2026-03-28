@@ -11,13 +11,19 @@ describe("Timer", () => {
     vi.useRealTimers();
   });
 
-  it("should render initial time as 45:00", () => {
-    render(<Timer sessionId="test-id" />);
+  const defaultProps = {
+    timeLimit: 2700, // 45 minutes in seconds
+    onTimeUpdate: vi.fn(),
+    onTimerExpired: vi.fn(),
+  };
+
+  it("should render initial time based on timeLimit in seconds", () => {
+    render(<Timer {...defaultProps} />);
     expect(screen.getByText("45:00")).toBeInTheDocument();
   });
 
   it("should count down every second", () => {
-    render(<Timer sessionId="test-id" />);
+    render(<Timer {...defaultProps} />);
     expect(screen.getByText("45:00")).toBeInTheDocument();
 
     act(() => {
@@ -31,38 +37,63 @@ describe("Timer", () => {
     expect(screen.getByText("44:58")).toBeInTheDocument();
   });
 
-  it("should show red text when under 5 minutes", () => {
-    render(<Timer sessionId="test-id" />);
+  it("should call onTimeUpdate when ticking", () => {
+    const onTimeUpdate = vi.fn();
+    render(<Timer {...defaultProps} onTimeUpdate={onTimeUpdate} />);
 
-    // Advance to 40 minutes and 1 second (4:59 remaining)
     act(() => {
-      vi.advanceTimersByTime((45 * 60 - 299) * 1000);
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onTimeUpdate).toHaveBeenCalled();
+  });
+
+  it("should show red text when under 5 minutes", () => {
+    render(<Timer {...defaultProps} />);
+
+    // Advance to 4:59 remaining
+    act(() => {
+      vi.advanceTimersByTime((2700 - 299) * 1000);
     });
 
     const timerEl = screen.getByText("04:59");
     expect(timerEl.className).toContain("text-red-500");
   });
 
-  it("should not show red text when over 5 minutes", () => {
-    render(<Timer sessionId="test-id" />);
+  it("should show amber text between 5-10 minutes", () => {
+    render(<Timer {...defaultProps} />);
 
-    const timerEl = screen.getByText("45:00");
-    expect(timerEl.className).not.toContain("text-red-500");
-    expect(timerEl.className).toContain("text-zinc-600");
+    // Advance to 9:59 remaining
+    act(() => {
+      vi.advanceTimersByTime((2700 - 599) * 1000);
+    });
+
+    const timerEl = screen.getByText("09:59");
+    expect(timerEl.className).toContain("text-amber-500");
   });
 
-  it("should stop at 00:00", () => {
-    render(<Timer sessionId="test-id" />);
+  it("should not count down when disabled", () => {
+    render(<Timer {...defaultProps} disabled />);
+    expect(screen.getByText("45:00")).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(45 * 60 * 1000);
-    });
-    expect(screen.getByText("00:00")).toBeInTheDocument();
-
-    // Advance more — should stay at 00:00
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(screen.getByText("45:00")).toBeInTheDocument();
+  });
+
+  it("should stop at 00:00 and call onTimerExpired", () => {
+    const onTimerExpired = vi.fn();
+    render(<Timer {...defaultProps} onTimerExpired={onTimerExpired} />);
+
+    act(() => {
+      vi.advanceTimersByTime(2700 * 1000);
+    });
     expect(screen.getByText("00:00")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(onTimerExpired).toHaveBeenCalled();
   });
 });
