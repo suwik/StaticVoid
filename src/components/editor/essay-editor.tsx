@@ -19,6 +19,7 @@ interface EssayEditorProps {
   onContentChange: (content: string) => void;
   onNewNudge: (nudge: Intervention) => void;
   disabled?: boolean;
+  triggerInitialCheck?: boolean;
 }
 
 function textToPlateValue(text: string): Value {
@@ -36,6 +37,7 @@ export function EssayEditor({
   onContentChange,
   onNewNudge,
   disabled = false,
+  triggerInitialCheck = false,
 }: EssayEditorProps) {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -184,6 +186,16 @@ export function EssayEditor({
 
     return () => clearInterval(interval);
   }, [sessionId, disabled, sendInterventionCheck]);
+
+  // Scenario demo: fire an initial check 3s after mount so Sooner responds immediately
+  useEffect(() => {
+    if (!triggerInitialCheck || !initialContent.trim() || disabled) return;
+    const t = setTimeout(() => {
+      sendInterventionCheck(initialContent);
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sentence completion detection: trigger AI check when a sentence ends
   const initialSentences = initialContent.match(/[.!?](?:\s|$)/g);

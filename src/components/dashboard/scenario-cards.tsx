@@ -49,7 +49,7 @@ export function ScenarioCards({ scenarios }: { scenarios: PredefinedScenario[] }
         }),
       });
 
-      router.push(`/session/${session.id}`);
+      router.push(`/session/${session.id}?demo=1`);
     } catch {
       setLoadingId(null);
     }

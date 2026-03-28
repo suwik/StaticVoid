@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Flag, Loader2 } from "lucide-react";
 import { EssayEditor } from "@/components/editor/essay-editor";
@@ -16,7 +16,9 @@ import type { Session, Intervention, StudentResponse } from "@/lib/types";
 export default function SessionPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sessionId = params.id;
+  const isDemo = searchParams.get("demo") === "1";
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -227,6 +229,7 @@ export default function SessionPage() {
             onContentChange={handleContentChange}
             onNewNudge={handleNewNudge}
             disabled={isCompleted}
+            triggerInitialCheck={isDemo}
           />
         </div>
 
