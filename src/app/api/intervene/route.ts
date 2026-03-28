@@ -83,30 +83,31 @@ export async function POST(request: NextRequest) {
       studentPatterns: patternSummary || undefined,
     });
 
-    // Use generateContent for low-latency response (Interactions API is too slow)
-    const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction: INTERVENTION_SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            should_intervene: { type: "boolean" },
-            type: {
-              type: "string",
-              enum: VALID_TYPES,
-              nullable: true,
-            },
-            message: { type: "string", nullable: true },
+    const interaction = await client.interactions.create({
+      model: "gemini-3-flash-preview",
+      input: userPrompt,
+      system_instruction: INTERVENTION_SYSTEM_PROMPT,
+      response_mime_type: "application/json",
+      response_format: {
+        type: "object",
+        properties: {
+          should_intervene: { type: "boolean" },
+          type: {
+            type: "string",
+            enum: VALID_TYPES,
+            nullable: true,
           },
-          required: ["should_intervene", "type", "message"],
+          message: { type: "string", nullable: true },
         },
+        required: ["should_intervene", "type", "message"],
       },
+      store: false,
     });
 
-    const text = response.text;
+    const textOutput = interaction.outputs?.find(
+      (o: { type: string }) => o.type === "text"
+    ) as { type: "text"; text: string } | undefined;
+    const text = textOutput?.text;
     if (!text) {
       console.warn("No text from Gemini");
       return NextResponse.json({

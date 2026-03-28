@@ -5,7 +5,8 @@ import { Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TimerProps {
-  timeLimit: number; // in seconds
+  timeLimit: number; // in seconds (full session duration, for progress ring)
+  initialSeconds?: number; // actual seconds to count down from (accounts for elapsed time)
   onTimeUpdate: (secondsLeft: number) => void;
   onTimerExpired: () => void;
   disabled?: boolean;
@@ -13,11 +14,12 @@ interface TimerProps {
 
 export function Timer({
   timeLimit,
+  initialSeconds,
   onTimeUpdate,
   onTimerExpired,
   disabled = false,
 }: TimerProps) {
-  const [secondsLeft, setSecondsLeft] = useState(timeLimit);
+  const [secondsLeft, setSecondsLeft] = useState(initialSeconds ?? timeLimit);
   const expiredRef = useRef(false);
 
   useEffect(() => {
