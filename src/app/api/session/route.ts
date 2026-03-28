@@ -50,9 +50,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create empty essay for this session
-    await supabase.from("essays").insert({
+    const { error: essayError } = await supabase.from("essays").insert({
       session_id: session.id,
     });
+
+    if (essayError) {
+      console.error("Essay creation error:", essayError);
+      // Clean up the orphaned session
+      await supabase.from("sessions").delete().eq("id", session.id);
+      return NextResponse.json({ error: "Failed to initialize essay" }, { status: 500 });
+    }
 
     return NextResponse.json(session);
   } catch (error) {
@@ -84,6 +91,6 @@ export async function GET() {
     return NextResponse.json(sessions ?? []);
   } catch (error) {
     console.error("Session fetch error:", error);
-    return NextResponse.json([], { status: 200 });
+    return NextResponse.json({ error: "Failed to fetch sessions" }, { status: 500 });
   }
 }
