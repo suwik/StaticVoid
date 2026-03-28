@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     const {
       sessionId,
       essaySoFar,
+      forceCheck,
       latestParagraph,
       paragraphIndex,
       timeRemaining,
@@ -85,8 +86,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Final-30s silence: don't intervene in the last 30 seconds
-    if (typeof timeRemaining === "number" && timeRemaining < 30) {
+    // Final-30s silence: don't intervene in the last 30 seconds (unless forceCheck for demos)
+    if (!forceCheck && typeof timeRemaining === "number" && timeRemaining < 30) {
       return NextResponse.json({
         should_intervene: false,
         type: null,
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
     });
 
     const interaction = await client.interactions.create({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       input: userPrompt,
       system_instruction: INTERVENTION_SYSTEM_PROMPT,
       response_mime_type: "application/json",

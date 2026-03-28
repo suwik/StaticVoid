@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { client } from "@/lib/gemini/client";
+import {
+  INTERVENTION_SYSTEM_PROMPT,
+  buildInterventionPrompt,
+} from "@/lib/gemini/prompts";
 import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
+import type { InterventionResponse, InterventionType } from "@/lib/types";
+
+const VALID_TYPES: InterventionType[] = [
+  "evaluation_depth",
+  "application_missing",
+  "structure_drift",
+  "evidence_lacking",
+  "time_priority",
+];
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,17 +70,66 @@ export async function POST(request: NextRequest) {
       console.error("Demo essay creation error:", essayError);
     }
 
-    // 3. Create the scripted initial nudge
+    // 3. Generate the initial nudge via AI, fall back to scripted
     const paragraphs = scenario.essayContent.split(/\n\n/).filter(Boolean);
+    const lastParagraph =
+      paragraphs[scenario.nudge.paragraphIndex] ?? paragraphs[paragraphs.length - 1];
+
+    let nudgeType = scenario.nudge.type;
+    let nudgeMessage = scenario.nudge.message;
+
+    // Try AI-generated nudge
+    try {
+      const userPrompt = buildInterventionPrompt({
+        question: scenario.question,
+        markScheme: scenario.markScheme,
+        essaySoFar: scenario.essayContent,
+        latestParagraph: lastParagraph,
+        paragraphIndex: scenario.nudge.paragraphIndex,
+        timeRemaining: scenario.timeRemaining,
+        timeLimit: scenario.timeLimit,
+      });
+
+      const interaction = await client.interactions.create({
+        model: "gemini-3-flash-preview",
+        input: userPrompt,
+        system_instruction: INTERVENTION_SYSTEM_PROMPT,
+        response_mime_type: "application/json",
+        response_format: {
+          type: "object",
+          properties: {
+            should_intervene: { type: "boolean" },
+            type: { type: "string", enum: VALID_TYPES, nullable: true },
+            message: { type: "string", nullable: true },
+          },
+          required: ["should_intervene", "type", "message"],
+        },
+        store: false,
+      });
+
+      const textOutput = interaction.outputs?.find(
+        (o: { type: string }) => o.type === "text"
+      ) as { type: "text"; text: string } | undefined;
+
+      if (textOutput?.text) {
+        const parsed: InterventionResponse = JSON.parse(textOutput.text);
+        if (parsed.should_intervene && parsed.type && parsed.message) {
+          nudgeType = parsed.type;
+          nudgeMessage = parsed.message;
+        }
+      }
+    } catch (err) {
+      console.error("AI nudge generation failed, using scripted fallback:", err);
+    }
+
     const { error: nudgeError } = await supabase
       .from("interventions")
       .insert({
         session_id: session.id,
         paragraph_index: scenario.nudge.paragraphIndex,
-        paragraph_text:
-          paragraphs[scenario.nudge.paragraphIndex] ?? paragraphs[paragraphs.length - 1],
-        intervention_type: scenario.nudge.type,
-        message: scenario.nudge.message,
+        paragraph_text: lastParagraph,
+        intervention_type: nudgeType,
+        message: nudgeMessage,
         student_response: "pending",
       });
 

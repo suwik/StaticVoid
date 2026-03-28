@@ -102,7 +102,7 @@ export default function SessionPage() {
     });
   }, []);
 
-  // Demo timed nudges: fire scripted nudges at set intervals.
+  // Demo timed nudges: call real AI at set intervals, fall back to scripted if AI fails.
   // Each nudge is skipped if an AI-generated nudge appeared since the last timed nudge.
   useEffect(() => {
     if (!session || isCompleted) return;
@@ -124,8 +124,47 @@ export default function SessionPage() {
         }
         aiCountAtLastFire = aiNudgeCountRef.current;
 
-        // Persist to DB and show
         const paragraphText = paragraphs[nudge.paragraphIndex] ?? "";
+        const currentEssay = essayContentRef.current || scenario.essayContent;
+
+        // Try real AI first
+        try {
+          const res = await fetch("/api/intervene", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              essaySoFar: currentEssay,
+              latestParagraph: paragraphText,
+              paragraphIndex: nudge.paragraphIndex,
+              timeRemaining: Math.max(0, scenario.timeRemaining - nudge.delaySeconds),
+              forceCheck: true,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.should_intervene && data.type && data.message) {
+              setNudges((prev) => [
+                {
+                  id: data.intervention_id ?? crypto.randomUUID(),
+                  session_id: sessionId,
+                  paragraph_index: nudge.paragraphIndex,
+                  paragraph_text: paragraphText,
+                  intervention_type: data.type,
+                  message: data.message,
+                  student_response: "pending",
+                  created_at: new Date().toISOString(),
+                },
+                ...prev,
+              ]);
+              return; // AI succeeded — don't use fallback
+            }
+          }
+        } catch {
+          // AI failed — fall through to scripted fallback
+        }
+
+        // Fallback: use the scripted message, persist via demo endpoint
         let savedId: string | null = null;
         try {
           const saveRes = await fetch("/api/demo/nudge", {

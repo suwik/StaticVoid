@@ -119,7 +119,7 @@ export function DemoScenarios() {
         </div>
         <div>
           <h2 className="font-heading text-lg tracking-tight">
-            Try a Demo
+            Preset Examples
           </h2>
           <p className="text-xs text-muted-foreground">
             See the AI coach in action — pick a scenario and watch it intervene in real time.
