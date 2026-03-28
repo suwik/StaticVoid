@@ -125,8 +125,8 @@ export function EssayEditor({
   // Lock to prevent concurrent intervention checks
   const interventionLockRef = useRef(false);
 
-  // Nudge cooldown: minimum 45s between displayed nudges, queue extras
-  const NUDGE_COOLDOWN_MS = 45_000;
+  // Nudge cooldown: minimum 20s between displayed nudges, queue extras
+  const NUDGE_COOLDOWN_MS = 20_000;
   const lastNudgeShownRef = useRef(0);
   const nudgeQueueRef = useRef<Intervention[]>([]);
 
@@ -215,7 +215,7 @@ export function EssayEditor({
     [sessionId, showOrQueueNudge]
   );
 
-  // Stuck detection: if no typing for 30s, check every 45s
+  // Stuck detection: if no typing for 10s, nudge every 20s
   const lastActivityRef = useRef(Date.now());
   const lastStuckCheckRef = useRef(0);
 
@@ -227,11 +227,11 @@ export function EssayEditor({
       const current = contentRef.current.trim();
       const timeSinceLastStuckCheck = Date.now() - lastStuckCheckRef.current;
 
-      if (idleMs >= 30000 && current.length > 20 && timeSinceLastStuckCheck >= 45000) {
+      if (idleMs >= 10000 && current.length > 20 && timeSinceLastStuckCheck >= 20000) {
         lastStuckCheckRef.current = Date.now();
         sendInterventionCheck(current);
       }
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [sessionId, disabled, sendInterventionCheck]);
