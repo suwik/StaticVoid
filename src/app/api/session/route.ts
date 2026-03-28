@@ -14,6 +14,25 @@ export async function POST(request: NextRequest) {
 
     const { question, markScheme, timeLimit } = await request.json();
 
+    // Validate inputs
+    if (!question?.trim() || !markScheme?.trim()) {
+      return NextResponse.json(
+        { error: "Question and mark scheme are required" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      typeof timeLimit !== "number" ||
+      timeLimit < 60 ||
+      timeLimit > 10800
+    ) {
+      return NextResponse.json(
+        { error: "Time limit must be between 60 and 10800 seconds (1-180 minutes)" },
+        { status: 400 }
+      );
+    }
+
     // Create session
     const { data: session, error: sessionError } = await supabase
       .from("sessions")

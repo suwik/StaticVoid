@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Plate, PlateContent, usePlateEditor } from "platejs/react";
 import { BasicMarksPlugin } from "@platejs/basic-nodes/react";
+import { Loader2, Check, AlertCircle, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Value } from "platejs";
 import type { Intervention, InterventionResponse } from "@/lib/types";
 import {
@@ -75,7 +77,7 @@ export function EssayEditor({
         const res = await fetch("/api/essay", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, content: currentContent }),
+          body: JSON.stringify({ session_id: sessionId, content: currentContent }),
         });
         if (res.ok) {
           setSaveStatus("saved");
@@ -91,13 +93,17 @@ export function EssayEditor({
     }, 30000);
   }, [sessionId]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount or when disabled
   useEffect(() => {
+    if (disabled && saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [disabled]);
 
   const checkForNewParagraph = useCallback(
     async (value: Value) => {
@@ -187,44 +193,51 @@ export function EssayEditor({
         readOnly={disabled}
       >
         <PlateContent
-          className="flex-1 w-full min-h-[400px] rounded-lg border border-zinc-200 p-6 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-800 dark:bg-zinc-900 dark:focus:ring-zinc-700 [&_[data-slate-placeholder]]:!text-zinc-400 [&_[data-slate-placeholder]]:!opacity-100"
-          placeholder="Start writing your essay here..."
+          className={cn(
+            "flex-1 w-full min-h-[400px] rounded-xl border border-border",
+            "bg-card shadow-sm",
+            "p-8 md:p-10",
+            "text-[1.0625rem] leading-[1.8] tracking-[-0.01em]",
+            "font-sans text-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "dark:shadow-none",
+            "[&_[data-slate-placeholder]]:!text-muted-foreground/40 [&_[data-slate-placeholder]]:!opacity-100",
+            "[&_[data-slate-placeholder]]:!text-[1.0625rem] [&_[data-slate-placeholder]]:!leading-[1.8]"
+          )}
+          placeholder="Begin writing your essay..."
           autoFocus
         />
       </Plate>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between mt-2 px-1">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between mt-3 px-2">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {/* Save status */}
           <span
-            className={`text-xs transition-opacity duration-300 ${
-              saveStatus === "idle" ? "opacity-0" : "opacity-100"
-            } ${
-              saveStatus === "saving"
-                ? "text-zinc-400"
-                : saveStatus === "saved"
-                  ? "text-green-500"
-                  : saveStatus === "error"
-                    ? "text-red-400"
-                    : ""
-            }`}
+            className={cn(
+              "flex items-center gap-1.5 transition-all duration-300",
+              saveStatus === "idle" && "opacity-0",
+              saveStatus === "saving" && "text-muted-foreground",
+              saveStatus === "saved" && "text-emerald-500",
+              saveStatus === "error" && "text-destructive"
+            )}
           >
-            {saveStatus === "saving" && "Saving..."}
-            {saveStatus === "saved" && "Saved"}
-            {saveStatus === "error" && "Save failed"}
+            {saveStatus === "saving" && <><Loader2 className="size-3 animate-spin" /> Saving...</>}
+            {saveStatus === "saved" && <><Check className="size-3" /> Saved</>}
+            {saveStatus === "error" && <><AlertCircle className="size-3" /> Save failed</>}
           </span>
 
           {/* Checking indicator */}
           {checking && (
-            <span className="text-xs text-zinc-400 animate-pulse">
-              AI reviewing...
+            <span className="flex items-center gap-1.5 text-primary animate-pulse">
+              <Sparkles className="size-3" /> AI reviewing...
             </span>
           )}
         </div>
 
         {/* Word count */}
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-muted-foreground tabular-nums">
           {wordCountRef.current} words
         </span>
       </div>

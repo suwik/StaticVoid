@@ -5,7 +5,15 @@ import {
   INTERVENTION_SYSTEM_PROMPT,
   buildInterventionPrompt,
 } from "@/lib/gemini/prompts";
-import type { InterventionResponse, StudentResponse } from "@/lib/types";
+import type { InterventionResponse, InterventionType, StudentResponse } from "@/lib/types";
+
+const VALID_TYPES: InterventionType[] = [
+  "evaluation_depth",
+  "application_missing",
+  "structure_drift",
+  "evidence_lacking",
+  "time_priority",
+];
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +47,15 @@ export async function POST(request: NextRequest) {
         { error: "Session not found" },
         { status: 404 }
       );
+    }
+
+    // Final-minute silence: don't intervene in the last 60 seconds
+    if (typeof timeRemaining === "number" && timeRemaining < 60) {
+      return NextResponse.json({
+        should_intervene: false,
+        type: null,
+        message: null,
+      });
     }
 
     // Fetch student patterns
@@ -77,13 +94,7 @@ export async function POST(request: NextRequest) {
           should_intervene: { type: "boolean" },
           type: {
             type: "string",
-            enum: [
-              "evaluation_depth",
-              "application_missing",
-              "structure_drift",
-              "evidence_lacking",
-              "time_priority",
-            ],
+            enum: VALID_TYPES,
             nullable: true,
           },
           message: { type: "string", nullable: true },
@@ -92,11 +103,50 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const lastOutput = interaction.outputs?.[interaction.outputs.length - 1];
-    const text = lastOutput?.type === "text"
-      ? lastOutput.text
-      : '{"should_intervene": false, "type": null, "message": null}';
-    const intervention: InterventionResponse = JSON.parse(text);
+    // Validate Gemini response structure
+    if (!interaction.outputs || interaction.outputs.length === 0) {
+      console.warn("No outputs from Gemini");
+      return NextResponse.json({
+        should_intervene: false,
+        type: null,
+        message: null,
+      });
+    }
+
+    const lastOutput = interaction.outputs[interaction.outputs.length - 1];
+    if (lastOutput?.type !== "text" || !lastOutput.text) {
+      console.warn("Unexpected Gemini output type:", lastOutput?.type);
+      return NextResponse.json({
+        should_intervene: false,
+        type: null,
+        message: null,
+      });
+    }
+
+    let intervention: InterventionResponse;
+    try {
+      intervention = JSON.parse(lastOutput.text);
+    } catch (parseErr) {
+      console.error("Failed to parse Gemini JSON:", lastOutput.text);
+      return NextResponse.json({
+        should_intervene: false,
+        type: null,
+        message: null,
+      });
+    }
+
+    // Validate intervention type
+    if (
+      intervention.type &&
+      !VALID_TYPES.includes(intervention.type as InterventionType)
+    ) {
+      console.warn("Invalid intervention type from Gemini:", intervention.type);
+      return NextResponse.json({
+        should_intervene: false,
+        type: null,
+        message: null,
+      });
+    }
 
     // Save intervention if triggered
     if (intervention.should_intervene && intervention.type && intervention.message) {
@@ -111,6 +161,43 @@ export async function POST(request: NextRequest) {
         })
         .select("id")
         .single();
+
+      // Record pattern for weakness tracking
+      if (saved) {
+        try {
+          const skillArea = intervention.type.replace(/_/g, " ");
+          // Upsert pattern: increment frequency if exists, create if not
+          const { data: existingPattern } = await supabase
+            .from("patterns")
+            .select("id, frequency")
+            .eq("user_id", user.id)
+            .eq("weakness_type", intervention.type)
+            .single();
+
+          if (existingPattern) {
+            await supabase
+              .from("patterns")
+              .update({
+                frequency: existingPattern.frequency + 1,
+                last_seen: new Date().toISOString(),
+                resolved: false,
+              })
+              .eq("id", existingPattern.id);
+          } else {
+            await supabase.from("patterns").insert({
+              user_id: user.id,
+              skill_area: skillArea,
+              weakness_type: intervention.type,
+              frequency: 1,
+              last_seen: new Date().toISOString(),
+              resolved: false,
+            });
+          }
+        } catch (patternErr) {
+          // Don't fail the intervention if pattern tracking fails
+          console.error("Pattern tracking error:", patternErr);
+        }
+      }
 
       return NextResponse.json({
         ...intervention,

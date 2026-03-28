@@ -26,17 +26,12 @@ describe("NudgePanel", () => {
   it("should render empty state when no nudges", () => {
     render(<NudgePanel {...defaultProps} />);
     expect(screen.getByText("AI Coach")).toBeInTheDocument();
-    expect(
-      screen.getByText("Feedback will appear here as you write.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No feedback yet")).toBeInTheDocument();
   });
 
   it("should render a single nudge with correct type badge", () => {
     render(
-      <NudgePanel
-        {...defaultProps}
-        nudges={[makeNudge()]}
-      />
+      <NudgePanel {...defaultProps} nudges={[makeNudge()]} />
     );
     expect(
       screen.getByText("What does this mean for the business?")
@@ -56,9 +51,9 @@ describe("NudgePanel", () => {
 
     render(<NudgePanel {...defaultProps} nudges={nudges} />);
     expect(screen.getByText("Evaluation Depth")).toBeInTheDocument();
-    expect(screen.getByText("Application Missing")).toBeInTheDocument();
-    expect(screen.getByText("Structure Drift")).toBeInTheDocument();
-    expect(screen.getByText("Evidence Lacking")).toBeInTheDocument();
+    expect(screen.getByText("Apply to Context")).toBeInTheDocument();
+    expect(screen.getByText("Structure")).toBeInTheDocument();
+    expect(screen.getByText("Evidence")).toBeInTheDocument();
     expect(screen.getByText("Time Priority")).toBeInTheDocument();
   });
 
@@ -83,10 +78,8 @@ describe("NudgePanel", () => {
     ];
 
     render(<NudgePanel {...defaultProps} nudges={nudges} />);
-    // Active nudge should be visible
     expect(screen.getByText("Active nudge")).toBeInTheDocument();
-    // Dismissed nudges should be in a collapsed section
-    expect(screen.getByText(/1 dismissed nudge/)).toBeInTheDocument();
+    expect(screen.getByText(/1 dismissed/)).toBeInTheDocument();
   });
 
   it("should show multiple nudges in order", () => {
@@ -98,7 +91,6 @@ describe("NudgePanel", () => {
     render(<NudgePanel {...defaultProps} nudges={nudges} />);
     const messages = screen.getAllByText(/paragraph issue/);
     expect(messages).toHaveLength(2);
-    // First in array should render first (newest nudges prepended)
     expect(messages[0].textContent).toBe("Third paragraph issue");
   });
 
@@ -112,11 +104,9 @@ describe("NudgePanel", () => {
     expect(screen.getByText("Paragraph 4")).toBeInTheDocument();
   });
 
-  it("should have correct sidebar styling", () => {
+  it("should render with overflow scroll", () => {
     const { container } = render(<NudgePanel {...defaultProps} />);
     const panel = container.firstChild as HTMLElement;
-    expect(panel.className).toContain("w-80");
-    expect(panel.className).toContain("border-l");
     expect(panel.className).toContain("overflow-y-auto");
   });
 

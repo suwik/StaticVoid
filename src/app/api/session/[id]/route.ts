@@ -69,10 +69,10 @@ export async function PATCH(
       );
     }
 
-    // Verify the session belongs to this user
+    // Verify the session belongs to this user and check current status
     const { data: existing } = await supabase
       .from("sessions")
-      .select("id")
+      .select("id, status")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
@@ -81,6 +81,13 @@ export async function PATCH(
       return NextResponse.json(
         { error: "Session not found" },
         { status: 404 }
+      );
+    }
+
+    if (existing.status !== "active") {
+      return NextResponse.json(
+        { error: "Session already completed or abandoned" },
+        { status: 400 }
       );
     }
 

@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function SetupForm() {
   const [question, setQuestion] = useState("");
@@ -35,54 +39,41 @@ export function SetupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <label htmlFor="question" className="text-sm font-medium">
-          Essay Question
-        </label>
-        <textarea
+        <Label htmlFor="question">Essay Question</Label>
+        <Textarea
           id="question"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           required
           rows={3}
-          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
           placeholder="Paste your essay question here..."
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="markScheme" className="text-sm font-medium">
-          Mark Scheme Criteria
-        </label>
-        <textarea
+        <Label htmlFor="markScheme">Mark Scheme Criteria</Label>
+        <Textarea
           id="markScheme"
           value={markScheme}
           onChange={(e) => setMarkScheme(e.target.value)}
           required
           rows={5}
-          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
           placeholder="What criteria does this essay get marked against?"
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="timeLimit" className="text-sm font-medium">
-          Time Limit (minutes)
-        </label>
-        <input
+        <Label htmlFor="timeLimit">Time Limit (minutes)</Label>
+        <Input
           id="timeLimit"
           type="number"
           value={timeLimit}
           onChange={(e) => setTimeLimit(Number(e.target.value))}
           min={5}
           max={180}
-          className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
         />
       </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity disabled:opacity-50"
-      >
+      <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Creating..." : "Start Session"}
-      </button>
+      </Button>
     </form>
   );
 }

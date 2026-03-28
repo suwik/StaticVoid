@@ -2,9 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Flag, Loader2 } from "lucide-react";
 import { EssayEditor } from "@/components/editor/essay-editor";
 import { Timer } from "@/components/editor/timer";
 import { NudgePanel } from "@/components/editor/nudge-panel";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import type { Session, Intervention, StudentResponse } from "@/lib/types";
 
 export default function SessionPage() {
@@ -22,7 +28,7 @@ export default function SessionPage() {
   const [isCompleted, setIsCompleted] = useState(false);
   const completingRef = useRef(false);
 
-  // Fetch session data on mount
+  // Fetch session data and restore essay on mount
   useEffect(() => {
     async function fetchSession() {
       try {
@@ -37,6 +43,19 @@ export default function SessionPage() {
         }
         setSession(data);
         setTimeRemaining(data.time_limit); // already in seconds
+
+        // Restore saved essay content
+        try {
+          const essayRes = await fetch(`/api/essay?sessionId=${sessionId}`);
+          if (essayRes.ok) {
+            const essay = await essayRes.json();
+            if (essay.content) {
+              essayContentRef.current = essay.content;
+            }
+          }
+        } catch {
+          // Non-blocking: start with empty editor if restore fails
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load session");
       } finally {
@@ -84,10 +103,11 @@ export default function SessionPage() {
     setIsCompleted(true);
 
     try {
+      // Save final essay content (await to ensure it completes before marking session done)
       await fetch("/api/essay", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, content: essayContentRef.current }),
+        body: JSON.stringify({ session_id: sessionId, content: essayContentRef.current }),
       });
 
       await fetch(`/api/session/${sessionId}`, {
@@ -112,8 +132,23 @@ export default function SessionPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center h-full">
-        <div className="text-zinc-500 animate-pulse">Loading session...</div>
+      <div className="flex flex-1 flex-col h-full">
+        <div className="h-12 border-b border-border bg-muted/20 animate-pulse" />
+        <div className="flex flex-1 min-h-0">
+          <div className="flex-1 p-8">
+            <div className="h-full rounded-xl border border-border bg-muted/10 animate-pulse" />
+          </div>
+          <div className="w-80 border-l border-border">
+            <div className="p-5 border-b border-border space-y-3">
+              <div className="h-3 w-24 bg-muted/30 rounded animate-pulse" />
+              <div className="h-8 w-32 bg-muted/20 rounded animate-pulse" />
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="h-4 w-20 bg-muted/30 rounded animate-pulse" />
+              <div className="h-24 bg-muted/10 rounded-xl animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -122,10 +157,10 @@ export default function SessionPage() {
     return (
       <div className="flex flex-1 items-center justify-center h-full">
         <div className="text-center space-y-3">
-          <p className="text-red-500">{error || "Session not found"}</p>
+          <p className="text-destructive">{error || "Session not found"}</p>
           <button
             onClick={() => router.push("/dashboard")}
-            className="text-sm text-zinc-500 underline hover:text-zinc-700"
+            className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
           >
             Back to dashboard
           </button>
@@ -134,56 +169,78 @@ export default function SessionPage() {
     );
   }
 
+  const timeProgress = session.time_limit > 0
+    ? (timeRemaining / session.time_limit) * 100
+    : 0;
+
   return (
-    <div className="flex flex-1 h-full">
-      {/* Left: Editor area */}
-      <div className="flex-1 flex flex-col p-6 min-w-0">
-        <div className="mb-4">
-          <h1 className="text-lg font-semibold text-zinc-700 dark:text-zinc-300 line-clamp-2">
-            {session.question}
-          </h1>
-        </div>
-        <EssayEditor
-          sessionId={sessionId}
-          timeRemaining={timeRemaining}
-          onContentChange={handleContentChange}
-          onNewNudge={handleNewNudge}
-          disabled={isCompleted}
-        />
+    <div className="flex flex-1 flex-col h-full">
+      {/* Session header bar */}
+      <div className="flex items-center gap-3 h-12 px-4 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
+        <Link
+          href="/dashboard"
+          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+        <Separator orientation="vertical" className="h-4" />
+        <p className="text-sm text-muted-foreground truncate flex-1">
+          {session.question}
+        </p>
+        <Badge variant="outline" className="shrink-0">
+          {isCompleted ? "Completed" : "In Progress"}
+        </Badge>
       </div>
 
-      {/* Right: Sidebar with timer + nudges */}
-      <div className="w-80 border-l border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0">
-        {/* Timer section */}
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Time Remaining
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
+      <div className="flex flex-1 min-h-0">
+        {/* Left: Editor area */}
+        <div className="flex-1 flex flex-col p-6 lg:p-8 min-w-0">
+          <EssayEditor
+            sessionId={sessionId}
+            timeRemaining={timeRemaining}
+            onContentChange={handleContentChange}
+            onNewNudge={handleNewNudge}
+            disabled={isCompleted}
+          />
+        </div>
+
+        {/* Right: Sidebar with timer + nudges */}
+        <aside className="w-80 border-l border-border bg-muted/30 flex flex-col shrink-0">
+          {/* Timer section */}
+          <div className="p-5 border-b border-border space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.65rem] font-semibold text-muted-foreground uppercase tracking-[0.15em]">
+                Time Remaining
+              </span>
+              <Button
+                onClick={completeSession}
+                disabled={isCompleted}
+                size="sm"
+                className="gap-1.5"
+              >
+                {isCompleted ? (
+                  <><Loader2 className="size-3 animate-spin" /> Finishing...</>
+                ) : (
+                  <><Flag className="size-3" /> Finish</>
+                )}
+              </Button>
+            </div>
             <Timer
               timeLimit={session.time_limit}
               onTimeUpdate={handleTimeUpdate}
               onTimerExpired={handleTimerExpired}
               disabled={isCompleted}
             />
-            <button
-              onClick={completeSession}
-              disabled={isCompleted}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              {isCompleted ? "Finishing..." : "Finish"}
-            </button>
+            <Progress value={timeProgress} className="h-1.5" />
           </div>
-        </div>
 
-        {/* Nudge panel */}
-        <NudgePanel
-          nudges={nudges}
-          onDismiss={handleDismissNudge}
-          onResponseChange={handleResponseChange}
-        />
+          {/* Nudge panel */}
+          <NudgePanel
+            nudges={nudges}
+            onDismiss={handleDismissNudge}
+            onResponseChange={handleResponseChange}
+          />
+        </aside>
       </div>
     </div>
   );

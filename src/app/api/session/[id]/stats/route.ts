@@ -49,6 +49,18 @@ export async function GET(
 
     const typedInterventions = (interventions ?? []) as Intervention[];
 
+    // Fetch essay for word count
+    const { data: essay } = await supabase
+      .from("essays")
+      .select("content")
+      .eq("session_id", id)
+      .single();
+
+    const essayContent = essay?.content || "";
+    const wordCount = essayContent.trim()
+      ? essayContent.trim().split(/\s+/).length
+      : 0;
+
     // Calculate nudges by type
     const nudgesByType: Record<string, number> = {};
     for (const intervention of typedInterventions) {
@@ -78,6 +90,7 @@ export async function GET(
       student_responses: studentResponses,
       time_limit: session.time_limit,
       time_used: timeUsedSeconds,
+      word_count: wordCount,
       status: session.status,
       interventions: typedInterventions,
     };
