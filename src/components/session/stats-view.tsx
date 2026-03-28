@@ -11,6 +11,7 @@ interface SessionStats {
   student_responses: Record<string, number>;
   time_limit: number;
   time_used: number;
+  word_count: number;
   status: string;
   question: string;
   interventions: Intervention[];
@@ -90,10 +91,7 @@ export function StatsView({ sessionId }: StatsViewProps) {
   const dismissed = stats.student_responses["dismissed"] || 0;
   const read = stats.student_responses["read"] || 0;
   const pending = stats.student_responses["pending"] || 0;
-  const wordCount = stats.interventions.reduce(
-    (_, i) => i.paragraph_text.split(/\s+/).filter(Boolean).length,
-    0
-  );
+  const wordCount = stats.word_count ?? 0;
 
   const typeEntries = Object.entries(stats.nudges_by_type) as [
     InterventionType,

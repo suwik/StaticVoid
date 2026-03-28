@@ -1,6 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Missing sessionId query parameter" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the session belongs to this user
+    const { data: session } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
+    const { data: essay, error: essayError } = await supabase
+      .from("essays")
+      .select("*")
+      .eq("session_id", sessionId)
+      .single();
+
+    if (essayError || !essay) {
+      return NextResponse.json(
+        { error: "Essay not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(essay);
+  } catch (error) {
+    console.error("Essay fetch error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch essay" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -13,18 +70,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { session_id, content, word_count } = body;
+    // Accept both session_id and sessionId for compatibility
+    const sessionId = body.session_id || body.sessionId;
+    const { content } = body;
 
-    if (!session_id || typeof content !== "string") {
+    if (!sessionId || typeof content !== "string") {
       return NextResponse.json(
         { error: "Missing required fields: session_id, content" },
-        { status: 400 }
-      );
-    }
-
-    if (word_count !== undefined && typeof word_count !== "number") {
-      return NextResponse.json(
-        { error: "word_count must be a number" },
         { status: 400 }
       );
     }
@@ -33,7 +85,7 @@ export async function PUT(request: NextRequest) {
     const { data: session } = await supabase
       .from("sessions")
       .select("id")
-      .eq("id", session_id)
+      .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
 
@@ -44,20 +96,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update essay content
-    const updateData: { content: string; updated_at: string; word_count?: number } = {
-      content,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (word_count !== undefined) {
-      updateData.word_count = word_count;
-    }
-
     const { data: essay, error: essayError } = await supabase
       .from("essays")
-      .update(updateData)
-      .eq("session_id", session_id)
+      .update({
+        content,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("session_id", sessionId)
       .select()
       .single();
 
