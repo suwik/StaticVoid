@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm tsc:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/ksuwi/Git/StaticVoid/**)",
+      "Bash(done)"
+    ]
+  }
+}
