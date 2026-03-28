@@ -61,14 +61,14 @@ export function AuthForm() {
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="submit" disabled={loading} className="w-full rounded-full h-10 font-semibold">
         {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
       </Button>
       <Button
         type="button"
         variant="ghost"
         onClick={() => setIsSignUp(!isSignUp)}
-        className="w-full"
+        className="w-full rounded-full"
       >
         {isSignUp
           ? "Already have an account? Sign in"

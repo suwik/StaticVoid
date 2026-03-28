@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { Clock, MessageSquare, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { NavHeader } from "@/components/layout/nav-header";
+import { GridBackground } from "@/components/layout/grid-background";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Session, SessionStatus } from "@/lib/types";
 
@@ -33,38 +33,17 @@ function truncateQuestion(question: string, maxLength = 120): string {
   return question.slice(0, maxLength).trimEnd() + "...";
 }
 
-const statusConfig: Record<
-  SessionStatus,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive"; className: string }
-> = {
-  active: {
-    label: "Active",
-    variant: "default",
-    className:
-      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
-  },
-  completed: {
-    label: "Completed",
-    variant: "default",
-    className:
-      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-  },
-  abandoned: {
-    label: "Abandoned",
-    variant: "default",
-    className:
-      "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700",
-  },
+const statusColors: Record<SessionStatus, string> = {
+  active: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  completed: "bg-[var(--warm-blue)]/30 text-[#4a8099] border-[var(--warm-blue)]/40",
+  abandoned: "bg-muted text-muted-foreground border-border",
 };
 
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const config = statusConfig[status];
-  return (
-    <Badge variant="outline" className={config.className}>
-      {config.label}
-    </Badge>
-  );
-}
+const statusLabels: Record<SessionStatus, string> = {
+  active: "Active",
+  completed: "Completed",
+  abandoned: "Abandoned",
+};
 
 function SessionCard({
   session,
@@ -79,49 +58,52 @@ function SessionCard({
       : `/session/${session.id}`;
 
   return (
-    <Link href={href}>
-      <Card className="group transition-all hover:shadow-md hover:border-primary/20">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-medium leading-snug text-foreground group-hover:underline">
-              {truncateQuestion(session.question)}
-            </p>
-            <StatusBadge status={session.status} />
-          </div>
+    <Link href={href} className="group">
+      <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md hover:shadow-foreground/5 hover:-translate-y-0.5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium leading-snug text-foreground group-hover:underline underline-offset-2">
+            {truncateQuestion(session.question)}
+          </p>
+          <Badge variant="outline" className={statusColors[session.status]}>
+            {statusLabels[session.status]}
+          </Badge>
+        </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span>{formatDate(session.created_at)}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>{formatDate(session.created_at)}</span>
+          <span className="flex items-center gap-1">
+            <Clock className="size-3" />
+            {formatTimeLimit(session.time_limit)}
+          </span>
+          {interventionCount > 0 && (
             <span className="flex items-center gap-1">
-              <Clock className="size-3" />
-              {formatTimeLimit(session.time_limit)}
+              <MessageSquare className="size-3" />
+              {interventionCount} nudge{interventionCount !== 1 ? "s" : ""}
             </span>
-            {interventionCount > 0 && (
-              <span className="flex items-center gap-1">
-                <MessageSquare className="size-3" />
-                {interventionCount} nudge{interventionCount !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </div>
+      </div>
     </Link>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
-      <div className="rounded-full bg-primary/10 p-3">
-        <MessageSquare className="size-6 text-primary" />
+    <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border py-20">
+      <div
+        className="rounded-full p-4 mb-4"
+        style={{ backgroundColor: "var(--warm-blue)" }}
+      >
+        <MessageSquare className="size-6 text-foreground/70" />
       </div>
-      <h3 className="mt-4 text-sm font-medium text-foreground">
+      <h3 className="font-heading text-xl text-foreground">
         No sessions yet
       </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground max-w-xs text-center">
         Start your first practice session to begin improving your essay writing.
       </p>
       <Link href="/session/new" className="mt-6">
-        <Button className="gap-2">
+        <Button className="gap-2 rounded-full px-6 h-10 font-semibold">
           <Plus className="size-4" /> Start Practicing
         </Button>
       </Link>
@@ -146,7 +128,6 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false })
     .returns<Session[]>();
 
-  // Fetch intervention counts for all sessions in a single query
   let interventionCounts: Record<string, number> = {};
   if (sessions && sessions.length > 0) {
     const sessionIds = sessions.map((s) => s.id);
@@ -167,25 +148,25 @@ export default async function DashboardPage() {
   }
 
   return (
-    <>
+    <GridBackground>
       <NavHeader />
       <div className="mx-auto w-full max-w-4xl p-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="font-heading text-3xl tracking-tight">Dashboard</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Your essay practice sessions
             </p>
           </div>
           <Link href="/session/new">
-            <Button className="gap-2">
+            <Button className="gap-2 rounded-full px-5 h-9 font-semibold">
               <Plus className="size-4" /> New Session
             </Button>
           </Link>
         </div>
 
         {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
             <p className="text-sm text-destructive">
               Failed to load sessions. Please try refreshing the page.
             </p>
@@ -193,7 +174,7 @@ export default async function DashboardPage() {
         ) : !sessions || sessions.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {sessions.map((session) => (
               <SessionCard
                 key={session.id}
@@ -204,6 +185,6 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
-    </>
+    </GridBackground>
   );
 }
