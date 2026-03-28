@@ -166,6 +166,12 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [time, setTime] = React.useState(0);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
+  // Deterministic pseudo-random styles based on index (pure, no Math.random)
+  const barStyles = Array.from({ length: visualizerBars }, (_, i) => ({
+    height: `${Math.max(15, ((i * 37 + 13) % 100))}%`,
+    animationDuration: `${0.5 + ((i * 53 + 7) % 50) / 100}s`,
+  }));
+
   React.useEffect(() => {
     if (isRecording) {
       onStartRecording();
@@ -203,14 +209,14 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         </span>
       </div>
       <div className="w-full h-10 flex items-center justify-center gap-0.5 px-4">
-        {[...Array(visualizerBars)].map((_, i) => (
+        {barStyles.map((style, i) => (
           <div
             key={i}
             className="w-0.5 rounded-full bg-primary/40 animate-pulse"
             style={{
-              height: `${Math.max(15, Math.random() * 100)}%`,
+              height: style.height,
               animationDelay: `${i * 0.05}s`,
-              animationDuration: `${0.5 + Math.random() * 0.5}s`,
+              animationDuration: style.animationDuration,
             }}
           />
         ))}
@@ -383,7 +389,7 @@ const PromptInputTextarea: React.FC<
   );
 };
 
-interface PromptInputActionsProps extends React.HTMLAttributes<HTMLDivElement> {}
+type PromptInputActionsProps = React.HTMLAttributes<HTMLDivElement>;
 const PromptInputActions: React.FC<PromptInputActionsProps> = ({
   children,
   className,
@@ -474,8 +480,6 @@ export const PromptInputBox = React.forwardRef(
     };
 
     const handleCanvasToggle = () => setShowCanvas((prev) => !prev);
-
-    const isImageFile = (file: File) => file.type.startsWith("image/");
 
     const processFile = React.useCallback((file: File) => {
       if (!file.type.startsWith("image/")) {
