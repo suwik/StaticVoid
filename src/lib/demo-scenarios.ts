@@ -6,6 +6,10 @@ export interface DemoNudge {
   paragraphIndex: number;
 }
 
+export interface TimedNudge extends DemoNudge {
+  delaySeconds: number;
+}
+
 export interface DemoScenario {
   id: string;
   title: string;
@@ -16,8 +20,8 @@ export interface DemoScenario {
   timeRemaining: number; // seconds left on the clock when demo starts
   essayContent: string;
   nudge: DemoNudge;
-  /** Fallback nudge shown after delaySeconds if no AI nudge has fired */
-  fallbackNudge?: DemoNudge & { delaySeconds: number };
+  /** Timed nudges shown after delaySeconds — skipped if AI generates a nudge first */
+  timedNudges?: TimedNudge[];
 }
 
 const BUSINESS_QUESTION =
@@ -50,6 +54,22 @@ Furthermore, cultural differences proved more challenging than anticipated. Tech
         "One minute left. Don't start a new point. Don't write a summary. You have four strong paragraphs but zero judgement — just answer the question directly: was the expansion a strategic success? Get your verdict down now.",
       paragraphIndex: 3,
     },
+    timedNudges: [
+      {
+        delaySeconds: 20,
+        type: "time_priority",
+        message:
+          "30 seconds left. Even one sentence counts: \"Overall, the expansion was a strategic success because...\" or \"...was not justified because...\". Write it NOW — an incomplete conclusion beats no conclusion.",
+        paragraphIndex: 3,
+      },
+      {
+        delaySeconds: 42,
+        type: "evaluation_depth",
+        message:
+          "Time's up in seconds. Your four paragraphs are strong but you'll drop an entire mark band without a judgement. The examiner needs YOUR verdict, not more analysis.",
+        paragraphIndex: 3,
+      },
+    ],
   },
   {
     id: "four-minutes-no-evaluation",
@@ -70,13 +90,15 @@ The move into Asia also created significant supply chain risks. TechCorp became 
         "You've got under 4 minutes and there's no evaluation anywhere — just analysis. Drop whatever you're writing. Pick your strongest point and challenge it: was the expansion WORTH it given the risks? One evaluative paragraph gets you into the top mark band.",
       paragraphIndex: 2,
     },
-    fallbackNudge: {
-      delaySeconds: 40,
-      type: "structure_drift",
-      message:
-        "Your supply chain paragraph is strong analysis, but it's sitting in isolation. How does this risk connect back to whether the expansion was a strategic SUCCESS? Link the argument to your overall judgement.",
-      paragraphIndex: 2,
-    },
+    timedNudges: [
+      {
+        delaySeconds: 40,
+        type: "structure_drift",
+        message:
+          "Your supply chain paragraph is strong analysis, but it's sitting in isolation. How does this risk connect back to whether the expansion was a strategic SUCCESS? Link the argument to your overall judgement.",
+        paragraphIndex: 2,
+      },
+    ],
   },
   {
     id: "stuck-clock-running",
@@ -95,13 +117,15 @@ However, this growth came at a cost to TechCorp's European operations. The reall
         "You've stopped writing with 8 minutes left and only two paragraphs down. Don't wait for the perfect sentence — what's the next argument against the expansion? Just start writing, you can tidy the wording later.",
       paragraphIndex: 1,
     },
-    fallbackNudge: {
-      delaySeconds: 35,
-      type: "evidence_lacking",
-      message:
-        "You mention VoltTech captured 12% of TechCorp's European market share — but what was the financial impact? Can you put a number on what that 12% cost TechCorp in revenue or profit? Examiners reward specific data.",
-      paragraphIndex: 1,
-    },
+    timedNudges: [
+      {
+        delaySeconds: 35,
+        type: "evidence_lacking",
+        message:
+          "You mention VoltTech captured 12% of TechCorp's European market share — but what was the financial impact? Can you put a number on what that 12% cost TechCorp in revenue or profit? Examiners reward specific data.",
+        paragraphIndex: 1,
+      },
+    ],
   },
   {
     id: "describing-not-analyzing",
@@ -118,12 +142,14 @@ However, this growth came at a cost to TechCorp's European operations. The reall
         "This reads like a textbook definition. The examiner already knows what market share is — what does losing 12% of it mean for TechCorp specifically? How does it affect their competitive position against VoltTech? Apply it to the case.",
       paragraphIndex: 0,
     },
-    fallbackNudge: {
-      delaySeconds: 45,
-      type: "application_missing",
-      message:
-        "You've explained the theory of economies of scale and brand recognition in general. But TechCorp had specific numbers — 34% European market share, 18% cost reduction. Use THEIR data to make your argument concrete.",
-      paragraphIndex: 0,
-    },
+    timedNudges: [
+      {
+        delaySeconds: 45,
+        type: "application_missing",
+        message:
+          "You've explained the theory of economies of scale and brand recognition in general. But TechCorp had specific numbers — 34% European market share, 18% cost reduction. Use THEIR data to make your argument concrete.",
+        paragraphIndex: 0,
+      },
+    ],
   },
 ];

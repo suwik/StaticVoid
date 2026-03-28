@@ -102,106 +102,69 @@ export default function SessionPage() {
     });
   }, []);
 
-  // Demo fallback: if this session matches a demo scenario with a fallback nudge,
-  // show it after a delay — but only if no AI nudge has been generated yet.
+  // Demo timed nudges: fire scripted nudges at set intervals.
+  // Each nudge is skipped if an AI-generated nudge appeared since the last timed nudge.
   useEffect(() => {
     if (!session || isCompleted) return;
 
     const scenario = DEMO_SCENARIOS.find(
-      (s) => s.question === session.question && s.fallbackNudge
+      (s) => s.question === session.question && s.timedNudges?.length
     );
-    if (!scenario?.fallbackNudge) return;
+    if (!scenario?.timedNudges) return;
 
-    const fallback = scenario.fallbackNudge;
-    const timer = setTimeout(async () => {
-      // Only fire if no AI nudge has appeared
-      if (aiNudgeCountRef.current > 0) return;
+    const paragraphs = scenario.essayContent.split(/\n\n/).filter(Boolean);
+    let aiCountAtLastFire = 0;
 
-      // Persist the fallback nudge to DB
-      const paragraphs = scenario.essayContent.split(/\n\n/).filter(Boolean);
-      let savedId: string | null = null;
-      try {
-        const res = await fetch("/api/intervene", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
-            essaySoFar: essayContentRef.current || scenario.essayContent,
-            latestParagraph: paragraphs[fallback.paragraphIndex] ?? paragraphs[paragraphs.length - 1],
-            paragraphIndex: fallback.paragraphIndex,
-            timeRemaining: timeRemaining - fallback.delaySeconds,
-          }),
-        });
-        // If AI responded with an intervention, use that instead
-        if (res.ok) {
-          const data = await res.json();
-          if (data.should_intervene && data.type && data.message) {
-            handleNewNudge({
-              id: data.intervention_id ?? crypto.randomUUID(),
-              session_id: sessionId,
-              paragraph_index: fallback.paragraphIndex,
-              paragraph_text: paragraphs[fallback.paragraphIndex] ?? "",
-              intervention_type: data.type,
-              message: data.message,
-              student_response: "pending",
-              created_at: new Date().toISOString(),
-            });
-            return;
-          }
+    const timers = scenario.timedNudges.map((nudge) =>
+      setTimeout(async () => {
+        // Skip if AI generated a nudge since the last timed nudge fired
+        if (aiNudgeCountRef.current > aiCountAtLastFire) {
+          aiCountAtLastFire = aiNudgeCountRef.current;
+          return;
         }
-      } catch {
-        // AI failed — fall through to scripted fallback
-      }
+        aiCountAtLastFire = aiNudgeCountRef.current;
 
-      // AI didn't produce a nudge — use the scripted fallback
-      // Save it to DB directly
-      try {
-        const saveRes = await fetch("/api/demo/nudge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
-            type: fallback.type,
-            message: fallback.message,
-            paragraphIndex: fallback.paragraphIndex,
-            paragraphText: paragraphs[fallback.paragraphIndex] ?? "",
-          }),
-        });
-        const saved = saveRes.ok ? await saveRes.json() : null;
+        // Persist to DB and show
+        const paragraphText = paragraphs[nudge.paragraphIndex] ?? "";
+        let savedId: string | null = null;
+        try {
+          const saveRes = await fetch("/api/demo/nudge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              type: nudge.type,
+              message: nudge.message,
+              paragraphIndex: nudge.paragraphIndex,
+              paragraphText,
+            }),
+          });
+          if (saveRes.ok) {
+            const saved = await saveRes.json();
+            savedId = saved.id;
+          }
+        } catch {
+          // Continue even if persist fails
+        }
 
         setNudges((prev) => [
           {
-            id: saved?.id ?? crypto.randomUUID(),
+            id: savedId ?? crypto.randomUUID(),
             session_id: sessionId,
-            paragraph_index: fallback.paragraphIndex,
-            paragraph_text: paragraphs[fallback.paragraphIndex] ?? "",
-            intervention_type: fallback.type,
-            message: fallback.message,
+            paragraph_index: nudge.paragraphIndex,
+            paragraph_text: paragraphText,
+            intervention_type: nudge.type,
+            message: nudge.message,
             student_response: "pending",
             created_at: new Date().toISOString(),
           },
           ...prev,
         ]);
-      } catch {
-        // Last resort: show without persisting
-        setNudges((prev) => [
-          {
-            id: crypto.randomUUID(),
-            session_id: sessionId,
-            paragraph_index: fallback.paragraphIndex,
-            paragraph_text: "",
-            intervention_type: fallback.type,
-            message: fallback.message,
-            student_response: "pending",
-            created_at: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-      }
-    }, fallback.delaySeconds * 1000);
+      }, nudge.delaySeconds * 1000)
+    );
 
-    return () => clearTimeout(timer);
-  }, [session, sessionId, isCompleted, timeRemaining, handleNewNudge]);
+    return () => timers.forEach(clearTimeout);
+  }, [session, sessionId, isCompleted]);
 
   const handleDismissNudge = useCallback((nudgeId: string) => {
     setNudges((prev) =>
