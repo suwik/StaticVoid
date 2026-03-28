@@ -31,6 +31,12 @@ export default function Home() {
         <Logo />
         <div className="flex items-center gap-4">
           <Link
+            href="/business"
+            className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
+          >
+            For Schools
+          </Link>
+          <Link
             href="/login"
             className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
           >

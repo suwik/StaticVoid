@@ -135,6 +135,32 @@ Live voice conversation with the AI coach during essay writing sessions. Student
 
 ---
 
+## Distribution Strategy & Market
+
+### Market
+The global private tutoring market is valued at $130–150 billion in 2025, growing at 7–10% annually, projected to hit $200–250 billion by the early 2030s. Over a hundred million students sit essay-based exams every year globally. In the UK alone: 5.6 million GCSE results and 850,000 A-level results issued in 2025. In Poland, tens of thousands of students prepare annually for IB, A-levels, SAT, and university entrance exams.
+
+Parents spend heavily. UK tutoring runs £25–50/hour, with Oxbridge/Ivy League prep hitting £100+/hour. Families easily spend $5,000–18,000/year on regular tutoring — per subject.
+
+### The Gap
+Every AI tutoring platform either answers questions or grades finished work. None sit alongside the student during a timed essay and teach in real time. Essay coaching is entirely unserved by technology — it's still human tutors one-on-one at premium hourly rates, or nothing at all.
+
+### Distribution (B2B first)
+1. **B2B to schools** — Sooner as a complementary offering. Teachers cannot provide paragraph-level essay feedback to 30 students simultaneously. Schools adopt it as a resource, students use it during study periods or at home, and the school gets data on where each student needs help.
+2. **B2B through AI tutoring platforms** — Sooner as an integration. Tutoring platforms already have the students but none have real-time essay coaching. Sooner slots in as a feature within their existing product.
+
+### Identified Targets
+- **The Swan School (Warsaw, Poland):** Poland's first school offering comprehensive preparation for Oxford, Cambridge, Harvard, Stanford. Based in central Warsaw, operating since 2014. They teach IB, A-levels, SAT, critical thinking, and application essays. Their entire model is built around the exact skill Sooner teaches. Both briefed and green-lit.
+- **We University (Warsaw, Poland):** Early adopter in AI-enabled education. Both briefed and green-lit for implementation.
+
+### Unit Economics
+API cost per student stays well under $5/month even at heavy usage (5 sessions/week, 20+ AI interventions per session). Charge $15–30/month as a subscription or $50–100/year per student for school licenses. The alternative is £50–100/hour human tutoring, or nothing at all.
+
+### Business Subsite
+Live at `/business` — targeting schools and institutions with the B2B pitch, ROI numbers, partner logos, and a contact CTA.
+
+---
+
 ## Future Features (POST-HACKATHON — do NOT build now)
 
 These are considered but explicitly deferred. Do not implement unless the user specifically requests.
