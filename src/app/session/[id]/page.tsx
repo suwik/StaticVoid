@@ -108,7 +108,9 @@ export default function SessionPage() {
     if (!session || isCompleted) return;
 
     const scenario = DEMO_SCENARIOS.find(
-      (s) => s.question === session.question && s.timedNudges?.length
+      (s) =>
+        s.timedNudges?.length &&
+        initialEssayContent.startsWith(s.essayContent.slice(0, 100))
     );
     if (!scenario?.timedNudges) return;
 
@@ -203,7 +205,7 @@ export default function SessionPage() {
     );
 
     return () => timers.forEach(clearTimeout);
-  }, [session, sessionId, isCompleted]);
+  }, [session, sessionId, isCompleted, initialEssayContent]);
 
   const handleDismissNudge = useCallback((nudgeId: string) => {
     setNudges((prev) =>
