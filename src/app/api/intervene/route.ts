@@ -15,6 +15,42 @@ const VALID_TYPES: InterventionType[] = [
   "time_priority",
 ];
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    if (!sessionId) {
+      return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+    }
+
+    const { data: interventions, error } = await supabase
+      .from("interventions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(interventions ?? []);
+  } catch (error) {
+    console.error("Fetch interventions error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch interventions" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -49,8 +85,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Final-minute silence: don't intervene in the last 60 seconds
-    if (typeof timeRemaining === "number" && timeRemaining < 60) {
+    // Final-30s silence: don't intervene in the last 30 seconds
+    if (typeof timeRemaining === "number" && timeRemaining < 30) {
       return NextResponse.json({
         should_intervene: false,
         type: null,
