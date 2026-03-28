@@ -7,6 +7,7 @@ import { ArrowLeft, Flag, Loader2 } from "lucide-react";
 import { EssayEditor } from "@/components/editor/essay-editor";
 import { Timer } from "@/components/editor/timer";
 import { NudgePanel } from "@/components/editor/nudge-panel";
+import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -89,13 +90,118 @@ export default function SessionPage() {
     setTimeRemaining(seconds);
   }, []);
 
+  // Track whether an AI-generated nudge has appeared (beyond the initial DB load)
+  const aiNudgeCountRef = useRef(0);
+
   const handleNewNudge = useCallback((nudge: Intervention) => {
+    aiNudgeCountRef.current += 1;
     setNudges((prev) => {
       // Deduplicate: don't add if this nudge ID already exists
       if (prev.some((n) => n.id === nudge.id)) return prev;
       return [nudge, ...prev];
     });
   }, []);
+
+  // Demo fallback: if this session matches a demo scenario with a fallback nudge,
+  // show it after a delay — but only if no AI nudge has been generated yet.
+  useEffect(() => {
+    if (!session || isCompleted) return;
+
+    const scenario = DEMO_SCENARIOS.find(
+      (s) => s.question === session.question && s.fallbackNudge
+    );
+    if (!scenario?.fallbackNudge) return;
+
+    const fallback = scenario.fallbackNudge;
+    const timer = setTimeout(async () => {
+      // Only fire if no AI nudge has appeared
+      if (aiNudgeCountRef.current > 0) return;
+
+      // Persist the fallback nudge to DB
+      const paragraphs = scenario.essayContent.split(/\n\n/).filter(Boolean);
+      let savedId: string | null = null;
+      try {
+        const res = await fetch("/api/intervene", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            essaySoFar: essayContentRef.current || scenario.essayContent,
+            latestParagraph: paragraphs[fallback.paragraphIndex] ?? paragraphs[paragraphs.length - 1],
+            paragraphIndex: fallback.paragraphIndex,
+            timeRemaining: timeRemaining - fallback.delaySeconds,
+          }),
+        });
+        // If AI responded with an intervention, use that instead
+        if (res.ok) {
+          const data = await res.json();
+          if (data.should_intervene && data.type && data.message) {
+            handleNewNudge({
+              id: data.intervention_id ?? crypto.randomUUID(),
+              session_id: sessionId,
+              paragraph_index: fallback.paragraphIndex,
+              paragraph_text: paragraphs[fallback.paragraphIndex] ?? "",
+              intervention_type: data.type,
+              message: data.message,
+              student_response: "pending",
+              created_at: new Date().toISOString(),
+            });
+            return;
+          }
+        }
+      } catch {
+        // AI failed — fall through to scripted fallback
+      }
+
+      // AI didn't produce a nudge — use the scripted fallback
+      // Save it to DB directly
+      try {
+        const saveRes = await fetch("/api/demo/nudge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            type: fallback.type,
+            message: fallback.message,
+            paragraphIndex: fallback.paragraphIndex,
+            paragraphText: paragraphs[fallback.paragraphIndex] ?? "",
+          }),
+        });
+        const saved = saveRes.ok ? await saveRes.json() : null;
+
+        setNudges((prev) => [
+          {
+            id: saved?.id ?? crypto.randomUUID(),
+            session_id: sessionId,
+            paragraph_index: fallback.paragraphIndex,
+            paragraph_text: paragraphs[fallback.paragraphIndex] ?? "",
+            intervention_type: fallback.type,
+            message: fallback.message,
+            student_response: "pending",
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      } catch {
+        // Last resort: show without persisting
+        setNudges((prev) => [
+          {
+            id: crypto.randomUUID(),
+            session_id: sessionId,
+            paragraph_index: fallback.paragraphIndex,
+            paragraph_text: "",
+            intervention_type: fallback.type,
+            message: fallback.message,
+            student_response: "pending",
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      }
+    }, fallback.delaySeconds * 1000);
+
+    return () => clearTimeout(timer);
+  }, [session, sessionId, isCompleted, timeRemaining, handleNewNudge]);
 
   const handleDismissNudge = useCallback((nudgeId: string) => {
     setNudges((prev) =>
