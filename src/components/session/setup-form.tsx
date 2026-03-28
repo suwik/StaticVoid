@@ -62,7 +62,7 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
             id="predefined"
             defaultValue="-1"
             onChange={handlePredefinedSelect}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <option value="-1" disabled>
               Select a question...
@@ -95,7 +95,7 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
             <button
               type="button"
               onClick={() => setMarkSchemeIsRendered(false)}
-              className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Edit
             </button>
@@ -103,7 +103,7 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
         </div>
 
         {markSchemeIsRendered ? (
-          <div className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-auto">
+          <div className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm overflow-auto">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -124,19 +124,19 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
                   </div>
                 ),
                 thead: ({ children }) => (
-                  <thead className="bg-zinc-100 dark:bg-zinc-800">{children}</thead>
+                  <thead className="bg-muted">{children}</thead>
                 ),
                 th: ({ children }) => (
-                  <th className="border border-zinc-200 dark:border-zinc-700 px-2 py-1 text-left font-medium">
+                  <th className="border border-border px-2 py-1 text-left font-medium">
                     {children}
                   </th>
                 ),
                 td: ({ children }) => (
-                  <td className="border border-zinc-200 dark:border-zinc-700 px-2 py-1 align-top">
+                  <td className="border border-border px-2 py-1 align-top">
                     {children}
                   </td>
                 ),
-                hr: () => <hr className="my-2 border-zinc-200 dark:border-zinc-700" />,
+                hr: () => <hr className="my-2 border-border" />,
               }}
             >
               {markScheme}
@@ -165,7 +165,7 @@ export function SetupForm({ predefinedQuestions = [] }: SetupFormProps) {
           max={180}
         />
       </div>
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="submit" disabled={loading} className="w-full rounded-full h-10 font-semibold">
         {loading ? "Creating..." : "Start Session"}
       </Button>
     </form>

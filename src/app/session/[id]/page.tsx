@@ -133,19 +133,19 @@ export default function SessionPage() {
   if (loading) {
     return (
       <div className="flex flex-1 flex-col h-full">
-        <div className="h-12 border-b border-border bg-muted/20 animate-pulse" />
+        <div className="h-14 border-b border-border bg-muted/20 animate-pulse" />
         <div className="flex flex-1 min-h-0">
-          <div className="flex-1 p-8">
-            <div className="h-full rounded-xl border border-border bg-muted/10 animate-pulse" />
+          <div className="flex-1 p-6 lg:p-8">
+            <div className="h-full rounded-2xl border border-border bg-muted/10 animate-pulse" />
           </div>
-          <div className="w-80 border-l border-border">
+          <div className="w-80 border-l border-border bg-surface-sunken">
             <div className="p-5 border-b border-border space-y-3">
-              <div className="h-3 w-24 bg-muted/30 rounded animate-pulse" />
-              <div className="h-8 w-32 bg-muted/20 rounded animate-pulse" />
+              <div className="h-3 w-24 bg-muted/30 rounded-full animate-pulse" />
+              <div className="h-8 w-32 bg-muted/20 rounded-full animate-pulse" />
             </div>
             <div className="p-4 space-y-3">
-              <div className="h-4 w-20 bg-muted/30 rounded animate-pulse" />
-              <div className="h-24 bg-muted/10 rounded-xl animate-pulse" />
+              <div className="h-4 w-20 bg-muted/30 rounded-full animate-pulse" />
+              <div className="h-24 bg-muted/10 rounded-2xl animate-pulse" />
             </div>
           </div>
         </div>
@@ -156,14 +156,15 @@ export default function SessionPage() {
   if (error || !session) {
     return (
       <div className="flex flex-1 items-center justify-center h-full">
-        <div className="text-center space-y-3">
-          <p className="text-destructive">{error || "Session not found"}</p>
-          <button
+        <div className="text-center space-y-4">
+          <p className="text-destructive font-medium">{error || "Session not found"}</p>
+          <Button
+            variant="outline"
             onClick={() => router.push("/dashboard")}
-            className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+            className="rounded-full px-5"
           >
             Back to dashboard
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -176,10 +177,10 @@ export default function SessionPage() {
   return (
     <div className="flex flex-1 flex-col h-full">
       {/* Session header bar */}
-      <div className="flex items-center gap-3 h-12 px-4 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
+      <div className="flex items-center gap-3 h-14 px-6 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
         <Link
           href="/dashboard"
-          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+          className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-muted"
         >
           <ArrowLeft className="size-4" />
         </Link>
@@ -187,7 +188,7 @@ export default function SessionPage() {
         <p className="text-sm text-muted-foreground truncate flex-1">
           {session.question}
         </p>
-        <Badge variant="outline" className="shrink-0">
+        <Badge variant="outline" className="shrink-0 rounded-full">
           {isCompleted ? "Completed" : "In Progress"}
         </Badge>
       </div>
@@ -205,7 +206,7 @@ export default function SessionPage() {
         </div>
 
         {/* Right: Sidebar with timer + nudges */}
-        <aside className="w-80 border-l border-border bg-muted/30 flex flex-col shrink-0">
+        <aside className="w-80 border-l border-border bg-surface-sunken flex flex-col shrink-0">
           {/* Timer section */}
           <div className="p-5 border-b border-border space-y-4">
             <div className="flex items-center justify-between">
@@ -216,7 +217,7 @@ export default function SessionPage() {
                 onClick={completeSession}
                 disabled={isCompleted}
                 size="sm"
-                className="gap-1.5"
+                className="gap-1.5 rounded-full"
               >
                 {isCompleted ? (
                   <><Loader2 className="size-3 animate-spin" /> Finishing...</>

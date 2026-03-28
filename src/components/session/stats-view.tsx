@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import type { Intervention, InterventionType } from "@/lib/types";
 
 interface SessionStats {
@@ -25,12 +26,27 @@ const TYPE_LABELS: Record<InterventionType, string> = {
   time_priority: "Time Priority",
 };
 
-const TYPE_COLORS: Record<InterventionType, string> = {
-  evaluation_depth: "bg-purple-500",
-  application_missing: "bg-blue-500",
-  structure_drift: "bg-amber-500",
-  evidence_lacking: "bg-red-500",
-  time_priority: "bg-orange-500",
+const TYPE_COLORS: Record<InterventionType, { bar: string; dot: string }> = {
+  evaluation_depth: {
+    bar: "bg-[var(--warm-lavender)]",
+    dot: "bg-[var(--warm-lavender)]",
+  },
+  application_missing: {
+    bar: "bg-[var(--warm-blue)]",
+    dot: "bg-[var(--warm-blue)]",
+  },
+  structure_drift: {
+    bar: "bg-[var(--warm-orange)]",
+    dot: "bg-[var(--warm-orange)]",
+  },
+  evidence_lacking: {
+    bar: "bg-red-400",
+    dot: "bg-red-400",
+  },
+  time_priority: {
+    bar: "bg-[var(--warm-orange)]/70",
+    dot: "bg-[var(--warm-orange)]",
+  },
 };
 
 function formatDuration(seconds: number): string {
@@ -68,7 +84,7 @@ export function StatsView({ sessionId }: StatsViewProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-zinc-500 animate-pulse">Loading stats...</p>
+        <p className="text-muted-foreground animate-pulse">Loading stats...</p>
       </div>
     );
   }
@@ -76,10 +92,10 @@ export function StatsView({ sessionId }: StatsViewProps) {
   if (error || !stats) {
     return (
       <div className="text-center py-12 space-y-3">
-        <p className="text-red-500">{error || "Stats not found"}</p>
+        <p className="text-destructive">{error || "Stats not found"}</p>
         <button
           onClick={() => router.push("/dashboard")}
-          className="text-sm text-zinc-500 underline hover:text-zinc-700"
+          className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
         >
           Back to dashboard
         </button>
@@ -103,11 +119,11 @@ export function StatsView({ sessionId }: StatsViewProps) {
     <div className="space-y-6">
       {/* Question */}
       {stats.question && (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="text-[0.65rem] font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-1">
             Essay Question
           </p>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="text-sm text-foreground/80">
             {stats.question}
           </p>
         </div>
@@ -115,53 +131,51 @@ export function StatsView({ sessionId }: StatsViewProps) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="text-sm text-zinc-500">Nudges Received</p>
-          <p className="text-2xl font-bold">{stats.total_nudges}</p>
-        </div>
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="text-sm text-zinc-500">Self-corrections</p>
-          <p className="text-2xl font-bold">{selfCorrections}</p>
-        </div>
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="text-sm text-zinc-500">Time Used</p>
-          <p className="text-2xl font-bold">{formatDuration(stats.time_used)}</p>
-        </div>
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="text-sm text-zinc-500">Word Count</p>
-          <p className="text-2xl font-bold">{wordCount}</p>
-        </div>
+        {[
+          { label: "Nudges Received", value: stats.total_nudges },
+          { label: "Self-corrections", value: selfCorrections },
+          { label: "Time Used", value: formatDuration(stats.time_used) },
+          { label: "Word Count", value: wordCount },
+        ].map((card) => (
+          <div key={card.label} className="rounded-2xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">{card.label}</p>
+            <p className="text-2xl font-bold font-heading mt-1">{card.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Intervention breakdown */}
       {typeEntries.length > 0 ? (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <h3 className="font-semibold mb-4">Intervention Breakdown</h3>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-heading text-lg mb-4">Intervention Breakdown</h3>
           <div className="space-y-3">
-            {typeEntries.map(([type, count]) => (
-              <div key={type}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    {TYPE_LABELS[type] || type}
-                  </span>
-                  <span className="font-medium">{count}</span>
+            {typeEntries.map(([type, count]) => {
+              const colors = TYPE_COLORS[type] || { bar: "bg-muted-foreground", dot: "bg-muted-foreground" };
+              return (
+                <div key={type}>
+                  <div className="flex items-center justify-between text-sm mb-1.5">
+                    <span className="text-muted-foreground">
+                      {TYPE_LABELS[type] || type}
+                    </span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted">
+                    <div
+                      className={`h-2 rounded-full transition-all ${colors.bar}`}
+                      style={{ width: `${(count / maxTypeCount) * 100}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
-                  <div
-                    className={`h-2 rounded-full ${TYPE_COLORS[type] || "bg-zinc-400"}`}
-                    style={{ width: `${(count / maxTypeCount) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 text-center">
-          <p className="text-green-600 font-medium">
+        <div className="rounded-2xl border border-border bg-card p-5 text-center">
+          <p className="text-emerald-600 font-medium">
             Great job, no nudges needed!
           </p>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             You stayed on track throughout the entire essay.
           </p>
         </div>
@@ -169,26 +183,26 @@ export function StatsView({ sessionId }: StatsViewProps) {
 
       {/* Response breakdown */}
       {stats.total_nudges > 0 && (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <h3 className="font-semibold mb-3">How You Responded</h3>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-heading text-lg mb-3">How You Responded</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="text-center">
-              <p className="text-xl font-bold text-green-600">
+              <p className="text-xl font-bold text-emerald-600">
                 {selfCorrections}
               </p>
-              <p className="text-xs text-zinc-500">Revised</p>
+              <p className="text-xs text-muted-foreground">Revised</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-blue-600">{read}</p>
-              <p className="text-xs text-zinc-500">Read</p>
+              <p className="text-xl font-bold" style={{ color: "var(--warm-blue)" }}>{read}</p>
+              <p className="text-xs text-muted-foreground">Read</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-zinc-400">{dismissed}</p>
-              <p className="text-xs text-zinc-500">Dismissed</p>
+              <p className="text-xl font-bold text-muted-foreground">{dismissed}</p>
+              <p className="text-xs text-muted-foreground">Dismissed</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-zinc-300">{pending}</p>
-              <p className="text-xs text-zinc-500">Unread</p>
+              <p className="text-xl font-bold text-muted-foreground/50">{pending}</p>
+              <p className="text-xs text-muted-foreground">Unread</p>
             </div>
           </div>
         </div>
@@ -196,72 +210,72 @@ export function StatsView({ sessionId }: StatsViewProps) {
 
       {/* Intervention timeline */}
       {stats.interventions.length > 0 && (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <h3 className="font-semibold mb-3">Intervention Timeline</h3>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-heading text-lg mb-4">Intervention Timeline</h3>
           <div className="space-y-3">
-            {stats.interventions.map((intervention, i) => (
-              <div
-                key={intervention.id}
-                className="flex gap-3 text-sm"
-              >
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`h-3 w-3 rounded-full shrink-0 mt-1 ${
-                      TYPE_COLORS[intervention.intervention_type] || "bg-zinc-400"
-                    }`}
-                  />
-                  {i < stats.interventions.length - 1 && (
-                    <div className="w-px flex-1 bg-zinc-200 dark:bg-zinc-700 mt-1" />
-                  )}
-                </div>
-                <div className="pb-4">
-                  <p className="text-zinc-700 dark:text-zinc-300">
-                    {intervention.message}
-                  </p>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-xs text-zinc-400">
-                      Paragraph {intervention.paragraph_index + 1}
-                    </span>
-                    <span className="text-xs text-zinc-400">·</span>
-                    <span className="text-xs text-zinc-400">
-                      {TYPE_LABELS[intervention.intervention_type]}
-                    </span>
-                    <span className="text-xs text-zinc-400">·</span>
-                    <span
-                      className={`text-xs ${
-                        intervention.student_response === "revised"
-                          ? "text-green-500"
-                          : intervention.student_response === "read"
-                            ? "text-blue-500"
-                            : intervention.student_response === "dismissed"
-                              ? "text-zinc-400"
-                              : "text-zinc-300"
-                      }`}
-                    >
-                      {intervention.student_response}
-                    </span>
+            {stats.interventions.map((intervention, i) => {
+              const colors = TYPE_COLORS[intervention.intervention_type] || { dot: "bg-muted-foreground" };
+              return (
+                <div
+                  key={intervention.id}
+                  className="flex gap-3 text-sm"
+                >
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`h-3 w-3 rounded-full shrink-0 mt-1 ${colors.dot}`}
+                    />
+                    {i < stats.interventions.length - 1 && (
+                      <div className="w-px flex-1 bg-border mt-1" />
+                    )}
+                  </div>
+                  <div className="pb-4">
+                    <p className="text-foreground/80">
+                      {intervention.message}
+                    </p>
+                    <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                      <span className="text-xs text-muted-foreground">
+                        Paragraph {intervention.paragraph_index + 1}
+                      </span>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <span className="text-xs text-muted-foreground">
+                        {TYPE_LABELS[intervention.intervention_type]}
+                      </span>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <span
+                        className={`text-xs font-medium ${
+                          intervention.student_response === "revised"
+                            ? "text-emerald-600"
+                            : intervention.student_response === "read"
+                              ? "text-foreground/60"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {intervention.student_response}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
+        <Button
+          variant="outline"
           onClick={() => router.push("/dashboard")}
-          className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="rounded-full px-5"
         >
           Back to Dashboard
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => router.push("/session/new")}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="rounded-full px-5 font-semibold"
         >
           Try Again
-        </button>
+        </Button>
       </div>
     </div>
   );
