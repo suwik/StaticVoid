@@ -50,7 +50,10 @@ export function EssayEditor({
     ? initialContent.split(/\n\n/).filter(Boolean).length
     : 0;
   const lastCheckedRef = useRef(initialParagraphCount);
-  const wordCountRef = useRef(0);
+  const initialWordCount = initialContent.trim()
+    ? initialContent.trim().split(/\s+/).length
+    : 0;
+  const wordCountRef = useRef(initialWordCount);
   const onContentChangeRef = useRef(onContentChange);
   const onNewNudgeRef = useRef(onNewNudge);
   const rafRef = useRef<number | null>(null);

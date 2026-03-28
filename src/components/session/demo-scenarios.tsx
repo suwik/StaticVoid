@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Clock, AlertTriangle, PenOff, BookOpen, Loader2 } from "lucide-react";
+import { Play, Clock, AlertTriangle, PenOff, BookOpen, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEMO_SCENARIOS } from "@/lib/demo-scenarios";
 import type { DemoScenario } from "@/lib/demo-scenarios";
@@ -112,14 +112,19 @@ function DemoCard({ scenario }: { scenario: DemoScenario }) {
 
 export function DemoScenarios() {
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-heading text-lg tracking-tight">
-          Demo Scenarios
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Pre-built sessions that showcase AI coaching in action. Click to launch.
-        </p>
+    <div className="rounded-3xl border-2 border-dashed border-primary/25 bg-primary/[0.03] p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="rounded-full bg-primary/10 p-2">
+          <Sparkles className="size-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-heading text-lg tracking-tight">
+            Try a Demo
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            See the AI coach in action — pick a scenario and watch it intervene in real time.
+          </p>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {DEMO_SCENARIOS.map((scenario) => (
