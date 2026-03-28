@@ -34,16 +34,12 @@ export function NavHeader() {
         >
           New Session
         </Link>
-        <Link
+        <a
           href="/"
-          className={`px-3.5 py-1.5 text-sm rounded-full transition-colors ${
-            pathname === "/"
-              ? "text-foreground bg-muted font-medium"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          }`}
+          className="px-3.5 py-1.5 text-sm rounded-full transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
         >
           Business Idea
-        </Link>
+        </a>
       </nav>
     </header>
   );
